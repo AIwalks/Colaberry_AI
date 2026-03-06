@@ -1,0 +1,4492 @@
+﻿{
+  "0711_AI_Chatbot_TriggerData_IPBC": {
+    "columns": [
+      {
+        "name": "CurrentConversation",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "GroupStatus",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "UpcomingClasses",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "UpcomingEvents",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "FAQ",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "MM_Student",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "FirstName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Email",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "MM_Mentor",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "MentorEmail",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "SuperMentor",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "SuperMentorEmail",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "PerComp_Act",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "PerOnPace",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "LastHWSubmitted",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastHWSubmittedDays",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "WksInProgram",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "WksInProgramInt",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "IPBC_StartDate",
+        "type": "DATE",
+        "nullable": true
+      },
+      {
+        "name": "Phase1_PerComp",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "DaysToMarket",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Est_MarketDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "CurrentHWSectionID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "CurrentHWSection",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "CurrentHWAssignment",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastActivitySection",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastActivitySectionOrder",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ActiveStatus",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "GroupOrderid",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "DetailOrderid",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ActiveUsers",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "StatusI",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "StatusII",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Total_Payments",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "Total_Credits",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "UserID",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "StudentProfile",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "UserName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "PhoneNumber",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "PathName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ClassName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ClassSignupsID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "UserKey",
+        "type": "NVARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "FeePaid",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "ClassFeesPaid",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "ClassCredits",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "ClassValue",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "IPBC_FeesPaid",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "IPBC_CurrentlyDue",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "IPBC_Credits",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "CancelReason",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastActivityDays",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "LastLoginDays",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "Past10DaysLogon",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "IsJRPActive",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "IsIPBCActive",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "IsClassActive",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "IsRegistered",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "AppAccess",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "StatusDesc",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "SMI_Status",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "RegisterDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "StudentStartDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "ClassStartDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "ClassEndDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "IPBCStartDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "JRP_StartDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "StudentEndDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "LastActivity",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "LastLoginDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "DaysInStatus",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ChatGPT_Prompt",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "DataDictionary",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "InsertDate",
+        "type": "DATETIME",
+        "nullable": true
+      }
+    ]
+  },
+  "AI_ChatBot_AuditLog": {
+    "columns": [
+      {
+        "name": "entry_id",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "phone_number",
+        "type": "VARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "entry_type",
+        "type": "VARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "input_message",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "output_message",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "created_at",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "CBM_ID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Email",
+        "type": "VARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Channel",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ProcessingTimeSeconds",
+        "type": "FLOAT",
+        "nullable": true
+      }
+    ]
+  },
+  "AI_ChatBot_ConversationState": {
+    "columns": [
+      {
+        "name": "PhoneNumber",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Email",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Channel",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "StateJSON",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastUpdated",
+        "type": "DATETIME",
+        "nullable": true
+      }
+    ]
+  },
+  "AI_ChatBot_MessageLogs": {
+    "columns": [
+      {
+        "name": "ID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "MessageSID",
+        "type": "VARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "RelatedToSID",
+        "type": "VARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "PhoneNumber",
+        "type": "VARCHAR(25) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Direction",
+        "type": "VARCHAR(20) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Channel",
+        "type": "VARCHAR(10) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "MessageType",
+        "type": "VARCHAR(20) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Status",
+        "type": "VARCHAR(20) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "DateSent",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "ErrorCode",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ErrorMessage",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Body",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      }
+    ]
+  },
+  "AI_ChatBot_TestSurveyData": {
+    "columns": [
+      {
+        "name": "ID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "UserID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ClassEventID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "MissedQuestion",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "QuestionDetails",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Used",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "InsertDate",
+        "type": "DATETIME",
+        "nullable": true
+      }
+    ]
+  },
+  "AI_ChatBot_TriggerData": {
+    "columns": [
+      {
+        "name": "CurrentConversation",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "GroupStatus",
+        "type": "VARCHAR(7) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "UpcomingClasses",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "UpcomingEvents",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "FAQ",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ReferralSource",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ActiveStatus",
+        "type": "VARCHAR(10) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastRun",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "RevenuePerCustomer",
+        "type": "MONEY",
+        "nullable": true
+      },
+      {
+        "name": "GroupOrderid",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ActiveUsers",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "StatusI",
+        "type": "VARCHAR(10) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "StatusII",
+        "type": "NVARCHAR(4000) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Total_Payments",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "Total_Credits",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "UserID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "StudentProfile",
+        "type": "VARCHAR(156) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "FirstName",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "LastName",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Email",
+        "type": "NVARCHAR(256) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "UserName",
+        "type": "NVARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "PhoneNumber",
+        "type": "VARCHAR(20) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "PathName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ClassName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ClassSignupsID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "FeePaid",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ClassFeesPaid",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ClassCredits",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ClassValue",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "PaymentBalance",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "CancelReason",
+        "type": "NVARCHAR(271) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastActivityDays",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "LastLoginDays",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Past10DaysLogon",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "LastActivitySection",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastActivitySectionOrder",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "IsClassActive",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "RegisterDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "IPBCStartDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "StudentStartDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "ClassStartDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "ClassEndDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "StudentEndDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "LastActivity",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "LastLoginDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "DaysInStatus",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "NoOfAssignmentsSubmitted",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "AvgHWScore",
+        "type": "NUMERIC(38, 6)",
+        "nullable": true
+      },
+      {
+        "name": "AvgEffRating",
+        "type": "NUMERIC(38, 9)",
+        "nullable": true
+      },
+      {
+        "name": "LastSubmitted",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "x",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "y",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "size",
+        "type": "NUMERIC(38, 10)",
+        "nullable": true
+      },
+      {
+        "name": "shape",
+        "type": "VARCHAR(6) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "TotalNoOfAssignments",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "AttendancePercentage",
+        "type": "NUMERIC(38, 6)",
+        "nullable": true
+      },
+      {
+        "name": "LastClassMissed",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "ClassID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "HWsBehind",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "CurrentHWSectionID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "CurrentHWSection",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "CurrentHWAssignment",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ChatGPT_prompt",
+        "type": "VARCHAR(367) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "DataDictionary",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "InsertDate",
+        "type": "DATETIME",
+        "nullable": true
+      }
+    ]
+  },
+  "AI_ChatBot_TriggerData_Bkp": {
+    "columns": [
+      {
+        "name": "ReferralSource",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ActiveStatus",
+        "type": "VARCHAR(10) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastRun",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "RevenuePerCustomer",
+        "type": "MONEY",
+        "nullable": true
+      },
+      {
+        "name": "GroupOrderid",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ActiveUsers",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "StatusI",
+        "type": "VARCHAR(10) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "StatusII",
+        "type": "NVARCHAR(4000) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Total_Payments",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "Total_Credits",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "UserID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "StudentProfile",
+        "type": "VARCHAR(156) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "FirstName",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "LastName",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Email",
+        "type": "NVARCHAR(256) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "UserName",
+        "type": "NVARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "PhoneNumber",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "PathName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ClassName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ClassSignupsID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "FeePaid",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ClassFeesPaid",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ClassCredits",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ClassValue",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "PaymentBalance",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "CancelReason",
+        "type": "NVARCHAR(271) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastActivityDays",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "LastLoginDays",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Past10DaysLogon",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "LastActivitySection",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastActivitySectionOrder",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "IsClassActive",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "RegisterDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "IPBCStartDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "StudentStartDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "ClassStartDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "ClassEndDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "StudentEndDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "LastActivity",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "LastLoginDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "DaysInStatus",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "NoOfAssignmentsSubmitted",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "AvgHWScore",
+        "type": "NUMERIC(38, 6)",
+        "nullable": true
+      },
+      {
+        "name": "AvgEffRating",
+        "type": "NUMERIC(38, 9)",
+        "nullable": true
+      },
+      {
+        "name": "LastSubmitted",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "x",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "y",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "size",
+        "type": "NUMERIC(38, 10)",
+        "nullable": true
+      },
+      {
+        "name": "shape",
+        "type": "VARCHAR(6) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "TotalNoOfAssignments",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "AttendancePercentage",
+        "type": "NUMERIC(38, 6)",
+        "nullable": true
+      },
+      {
+        "name": "LastClassMissed",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "ClassID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "HWsBehind",
+        "type": "INTEGER",
+        "nullable": true
+      }
+    ]
+  },
+  "AI_ChatBot_TriggerData_InterviewPrep": {
+    "columns": [
+      {
+        "name": "FirstName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "PhoneNumber",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Email",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "UserID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "InterviewDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "NoofDays",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "LogInterviewID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "QID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Job_Title",
+        "type": "NVARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Job_Description",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Recruiter_First_Name",
+        "type": "NVARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Recruiter_Last_Name",
+        "type": "NVARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Recruiter_Email_Address",
+        "type": "NVARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Company_name",
+        "type": "NVARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "SetName",
+        "type": "NVARCHAR(200) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "CandidateID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "SurveyResponse",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "InterviewType",
+        "type": "VARCHAR(9) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Preparationscore",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "AutoInterviewsCount",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "AutoMocks_Overall_score_AVG",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "AutoMocks_Overall_score_MAX",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "AutoMockFeedback_ChatGPT",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "AutoInterviewsDuration",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "MentorInterviewsCount",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "MentorInterviewsDuration",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Mentor",
+        "type": "NVARCHAR(101) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Applicant",
+        "type": "NVARCHAR(101) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Recruiter_InterviewCount",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Technical_InterviewCount",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "InterviewScore",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "InterviewMinutes",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "StudentPrep_Xaxis",
+        "type": "NUMERIC(25, 13)",
+        "nullable": true
+      },
+      {
+        "name": "StudentPrep_Yaxis",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "MentorPrep_Xaxis",
+        "type": "NUMERIC(18, 6)",
+        "nullable": true
+      },
+      {
+        "name": "MentorPrep_Yaxis",
+        "type": "NVARCHAR(4000) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "MenteeFutureInterviews",
+        "type": "VARCHAR(6734) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "ChatGPT_prompt",
+        "type": "VARCHAR(1000) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      }
+    ]
+  },
+  "AI_ChatBot_TriggerData_Processed_Bkp": {
+    "columns": [
+      {
+        "name": "CurrentConversation",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "GroupStatus",
+        "type": "VARCHAR(7) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "UpcomingClasses",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "UpcomingEvents",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "FAQ",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ReferralSource",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ActiveStatus",
+        "type": "VARCHAR(10) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastRun",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "RevenuePerCustomer",
+        "type": "MONEY",
+        "nullable": true
+      },
+      {
+        "name": "GroupOrderid",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ActiveUsers",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "StatusI",
+        "type": "VARCHAR(10) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "StatusII",
+        "type": "NVARCHAR(4000) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Total_Payments",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "Total_Credits",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "UserID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "StudentProfile",
+        "type": "VARCHAR(156) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "FirstName",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "LastName",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Email",
+        "type": "NVARCHAR(256) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "UserName",
+        "type": "NVARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "PhoneNumber",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "PathName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ClassName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ClassSignupsID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "FeePaid",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ClassFeesPaid",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ClassCredits",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ClassValue",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "PaymentBalance",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "CancelReason",
+        "type": "NVARCHAR(271) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastActivityDays",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "LastLoginDays",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Past10DaysLogon",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "LastActivitySection",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastActivitySectionOrder",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "IsClassActive",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "RegisterDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "IPBCStartDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "StudentStartDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "ClassStartDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "ClassEndDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "StudentEndDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "LastActivity",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "LastLoginDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "DaysInStatus",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "NoOfAssignmentsSubmitted",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "AvgHWScore",
+        "type": "NUMERIC(38, 6)",
+        "nullable": true
+      },
+      {
+        "name": "AvgEffRating",
+        "type": "NUMERIC(38, 9)",
+        "nullable": true
+      },
+      {
+        "name": "LastSubmitted",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "x",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "y",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "size",
+        "type": "NUMERIC(38, 10)",
+        "nullable": true
+      },
+      {
+        "name": "shape",
+        "type": "VARCHAR(6) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "TotalNoOfAssignments",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "AttendancePercentage",
+        "type": "NUMERIC(38, 6)",
+        "nullable": true
+      },
+      {
+        "name": "LastClassMissed",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "ClassID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "HWsBehind",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ChatGPT_prompt",
+        "type": "VARCHAR(367) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "DataDictionary",
+        "type": "VARCHAR(4790) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      }
+    ]
+  },
+  "AI_ChatBot_TriggerPromptAudit": {
+    "columns": [
+      {
+        "name": "CB_ID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "LastLowTriggerUpdate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "LastLowTriggerValue",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "LastHighTriggerUpdate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "LastHighTriggerValue",
+        "type": "INTEGER",
+        "nullable": true
+      }
+    ]
+  },
+  "AI_ChatBot_TriggerPromptAudit_Backup": {
+    "columns": [
+      {
+        "name": "CB_ID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "LastLowTriggerUpdate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "LastHighTriggerUpdate",
+        "type": "DATETIME",
+        "nullable": true
+      }
+    ]
+  },
+  "AI_ChatBot_TriggerRules": {
+    "columns": [
+      {
+        "name": "CB_ID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "TriggerType",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "TableName",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "KPI",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "BadIsGood",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "DaysToExecute",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Severity",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "DaysToExcuse",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "TriggerLow",
+        "type": "DECIMAL(10, 2)",
+        "nullable": true
+      },
+      {
+        "name": "TriggerHigh",
+        "type": "DECIMAL(10, 2)",
+        "nullable": true
+      },
+      {
+        "name": "ChatGPTPromptLowTrigger",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ChatGPTPromptHighTrigger",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "DynamicProcessing",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "AgentID",
+        "type": "INTEGER",
+        "nullable": true
+      }
+    ]
+  },
+  "AI_ChatBot_TriggerRules_0815": {
+    "columns": [
+      {
+        "name": "CB_ID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "TriggerType",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "TableName",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "KPI",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "BadIsGood",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "DaysToExecute",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Severity",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "DaysToExcuse",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "TriggerLow",
+        "type": "DECIMAL(10, 2)",
+        "nullable": true
+      },
+      {
+        "name": "TriggerHigh",
+        "type": "DECIMAL(10, 2)",
+        "nullable": true
+      },
+      {
+        "name": "ChatGPTPromptLowTrigger",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ChatGPTPromptHighTrigger",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "DynamicProcessing",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "AgentID",
+        "type": "INTEGER",
+        "nullable": true
+      }
+    ]
+  },
+  "AI_ChatBot_TriggeredUsers": {
+    "columns": [
+      {
+        "name": "CBM_ID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "CB_ID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Name",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "UserID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "PhoneNumber",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Email",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "TriggerType",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "TriggerLevel",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "KPI",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "KPI_Trigger",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Severity",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ChatGPTPromptTrigger",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "InsertDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "Completed",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "CompletedDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "AgentID",
+        "type": "INTEGER",
+        "nullable": true
+      }
+    ]
+  },
+  "AI_ChatBot_UnansweredQuestions": {
+    "columns": [
+      {
+        "name": "ID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "QuestionText",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "AnswerText",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Answered",
+        "type": "BIT",
+        "nullable": true
+      },
+      {
+        "name": "DateCaptured",
+        "type": "DATETIME",
+        "nullable": true
+      }
+    ]
+  },
+  "AI_Chatbot_TriggerData_IPBC": {
+    "columns": [
+      {
+        "name": "CurrentConversation",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "GroupStatus",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "UpcomingClasses",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "UpcomingEvents",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "FAQ",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "MM_Student",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "FirstName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Email",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "MM_Mentor",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "MentorEmail",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "SuperMentor",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "SuperMentorEmail",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "PerComp_Act",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "PerOnPace",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "LastHWSubmitted",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastHWSubmittedDays",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "WksInProgram",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "WksInProgramInt",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "IPBC_StartDate",
+        "type": "DATE",
+        "nullable": true
+      },
+      {
+        "name": "Phase1_PerComp",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "DaysToMarket",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Est_MarketDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "CurrentHWSectionID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "CurrentHWSection",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "CurrentHWAssignment",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastActivitySection",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastActivitySectionOrder",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ActiveStatus",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "GroupOrderid",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "DetailOrderid",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ActiveUsers",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "StatusI",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "StatusII",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Total_Payments",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "Total_Credits",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "UserID",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "StudentProfile",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "UserName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "PhoneNumber",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "PathName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ClassName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ClassSignupsID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "UserKey",
+        "type": "NVARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "FeePaid",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "ClassFeesPaid",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "ClassCredits",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "ClassValue",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "IPBC_FeesPaid",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "IPBC_CurrentlyDue",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "IPBC_Credits",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "CancelReason",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastActivityDays",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "LastLoginDays",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "Past10DaysLogon",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "IsJRPActive",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "IsIPBCActive",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "IsClassActive",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "IsRegistered",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "AppAccess",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "StatusDesc",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "SMI_Status",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "RegisterDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "StudentStartDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "ClassStartDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "ClassEndDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "IPBCStartDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "JRP_StartDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "StudentEndDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "LastActivity",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "LastLoginDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "DaysInStatus",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "COEId",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "COE_Name",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "BCP_ID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "BCP_Name",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "PTP_Name",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "CompPer",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "ProjectWk_SD",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "DaysInWk",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "TaskMgt",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "TaskEff",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "StagnantWks",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "CompPer_PI",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "ListURL",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ChatGPT_Prompt",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "DataDictionary",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "InsertDate",
+        "type": "DATETIME",
+        "nullable": true
+      }
+    ]
+  },
+  "AI_Subscriptions": {
+    "columns": [
+      {
+        "name": "PhoneNumber",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Name",
+        "type": "NVARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      }
+    ]
+  },
+  "Agent_Agents": {
+    "columns": [
+      {
+        "name": "AgentID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "AgentName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "AgentPurpose",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Inputs",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Outputs",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "AssociatedFunctions",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "CreatedDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "IsActive",
+        "type": "BIT",
+        "nullable": true
+      }
+    ]
+  },
+  "Agent_AuditLogs": {
+    "columns": [
+      {
+        "name": "AuditID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "TableName",
+        "type": "VARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Operation",
+        "type": "VARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "OldValue",
+        "type": "TEXT(2147483647) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "NewValue",
+        "type": "TEXT(2147483647) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "ChangedBy",
+        "type": "VARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "ChangedAt",
+        "type": "DATETIME",
+        "nullable": false
+      }
+    ]
+  },
+  "Agent_CommunicationLogs": {
+    "columns": [
+      {
+        "name": "LogID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "AgentID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "WorkflowID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "CBM_ID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "MessageType",
+        "type": "VARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "MessageContent",
+        "type": "TEXT(2147483647) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Timestamp",
+        "type": "DATETIME",
+        "nullable": false
+      },
+      {
+        "name": "Status",
+        "type": "VARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Sender",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Recipient",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      }
+    ]
+  },
+  "Agent_Configurations": {
+    "columns": [
+      {
+        "name": "ConfigID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "AgentID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "ConfigKey",
+        "type": "VARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "ConfigValue",
+        "type": "TEXT(2147483647) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Description",
+        "type": "TEXT(2147483647) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "CreatedAt",
+        "type": "DATETIME",
+        "nullable": false
+      },
+      {
+        "name": "UpdatedAt",
+        "type": "DATETIME",
+        "nullable": true
+      }
+    ]
+  },
+  "Agent_DecisionTrees": {
+    "columns": [
+      {
+        "name": "DecisionTreeID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "AgentID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "TreeName",
+        "type": "VARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Description",
+        "type": "TEXT(2147483647) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Rules",
+        "type": "TEXT(2147483647) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "CreatedAt",
+        "type": "DATETIME",
+        "nullable": false
+      },
+      {
+        "name": "UpdatedAt",
+        "type": "DATETIME",
+        "nullable": false
+      }
+    ]
+  },
+  "Agent_DynamicReports": {
+    "columns": [
+      {
+        "name": "ReportID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "ReportType",
+        "type": "VARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "AgentID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "WorkflowID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ReportContent",
+        "type": "TEXT(2147483647) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "GeneratedBy",
+        "type": "VARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Timestamp",
+        "type": "DATETIME",
+        "nullable": false
+      }
+    ]
+  },
+  "Agent_ExecutionLogs": {
+    "columns": [
+      {
+        "name": "ExecutionID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "AgentID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "WorkflowID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "TaskName",
+        "type": "VARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "ExecutionStart",
+        "type": "DATETIME",
+        "nullable": false
+      },
+      {
+        "name": "ExecutionEnd",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "Result",
+        "type": "TEXT(2147483647) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "ErrorDetails",
+        "type": "TEXT(2147483647) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      }
+    ]
+  },
+  "Agent_FeedbackLogs": {
+    "columns": [
+      {
+        "name": "FeedbackID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "AgentID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "WorkflowID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "UserID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "FeedbackType",
+        "type": "VARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "FeedbackDetails",
+        "type": "TEXT(2147483647) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Timestamp",
+        "type": "DATETIME",
+        "nullable": false
+      },
+      {
+        "name": "Status",
+        "type": "VARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      }
+    ]
+  },
+  "Agent_Interactions": {
+    "columns": [
+      {
+        "name": "InteractionID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "AgentID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "TaskID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "ToolID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "InteractionData",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "CreatedAt",
+        "type": "DATETIME",
+        "nullable": false
+      }
+    ]
+  },
+  "Agent_Notifications": {
+    "columns": [
+      {
+        "name": "NotificationID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "RecipientID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "MessageType",
+        "type": "VARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "MessageContent",
+        "type": "TEXT(2147483647) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Status",
+        "type": "VARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Timestamp",
+        "type": "DATETIME",
+        "nullable": false
+      }
+    ]
+  },
+  "Agent_PerformanceMetrics": {
+    "columns": [
+      {
+        "name": "MetricID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "AgentID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "WorkflowID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "MetricName",
+        "type": "VARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "MetricValue",
+        "type": "FLOAT",
+        "nullable": false
+      },
+      {
+        "name": "Timestamp",
+        "type": "DATETIME",
+        "nullable": false
+      }
+    ]
+  },
+  "Agent_Tasks": {
+    "columns": [
+      {
+        "name": "TaskID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "TaskName",
+        "type": "VARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Description",
+        "type": "TEXT(2147483647) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "ExpectedOutput",
+        "type": "TEXT(2147483647) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "AgentID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "ToolIDs",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "AsyncExecution",
+        "type": "BIT",
+        "nullable": false
+      },
+      {
+        "name": "OutputFile",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Callback",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "RetryAttempts",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Timeout",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Status",
+        "type": "VARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Dependencies",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "CreatedAt",
+        "type": "DATETIME",
+        "nullable": false
+      },
+      {
+        "name": "UpdatedAt",
+        "type": "DATETIME",
+        "nullable": false
+      }
+    ]
+  },
+  "Agent_TestCases": {
+    "columns": [
+      {
+        "name": "TestCaseID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "AgentID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "WorkflowID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "TestName",
+        "type": "VARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "TestInput",
+        "type": "TEXT(2147483647) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "ExpectedOutput",
+        "type": "TEXT(2147483647) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "ActualOutput",
+        "type": "TEXT(2147483647) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Status",
+        "type": "VARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Timestamp",
+        "type": "DATETIME",
+        "nullable": false
+      }
+    ]
+  },
+  "Agent_ToolAgentMappings": {
+    "columns": [
+      {
+        "name": "MappingID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "ToolID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "AgentID",
+        "type": "INTEGER",
+        "nullable": false
+      }
+    ]
+  },
+  "Agent_ToolTaskMappings": {
+    "columns": [
+      {
+        "name": "MappingID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "ToolID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "TaskID",
+        "type": "INTEGER",
+        "nullable": false
+      }
+    ]
+  },
+  "Agent_Tools": {
+    "columns": [
+      {
+        "name": "ToolID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "ToolName",
+        "type": "VARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Description",
+        "type": "TEXT(2147483647) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "APIKey",
+        "type": "VARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Timeout",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "RetryAttempts",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "MaxResults",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "QueryLanguage",
+        "type": "VARCHAR(10) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Verbose",
+        "type": "BIT",
+        "nullable": true
+      },
+      {
+        "name": "OutputFormat",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LogErrors",
+        "type": "BIT",
+        "nullable": true
+      },
+      {
+        "name": "Status",
+        "type": "VARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Config",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "CreatedAt",
+        "type": "DATETIME",
+        "nullable": false
+      },
+      {
+        "name": "UpdatedAt",
+        "type": "DATETIME",
+        "nullable": true
+      }
+    ]
+  },
+  "Agent_Triggers": {
+    "columns": [
+      {
+        "name": "TriggerID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "TriggerName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Description",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "TriggerType",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Conditions",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Callback",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "NextTask",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LogExecution",
+        "type": "BIT",
+        "nullable": false
+      },
+      {
+        "name": "LinkedAgentID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "LinkedTaskID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "LinkedToolID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "LinkedDecisionTreeID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "LinkedWorkflowID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Status",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "CreatedAt",
+        "type": "DATETIME",
+        "nullable": false
+      },
+      {
+        "name": "UpdatedAt",
+        "type": "DATETIME",
+        "nullable": true
+      }
+    ]
+  },
+  "Agent_WorkflowDecisionTreeMappings": {
+    "columns": [
+      {
+        "name": "MappingID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "WorkflowID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "DecisionTreeID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "Priority",
+        "type": "INTEGER",
+        "nullable": false
+      }
+    ]
+  },
+  "Agent_Workflows": {
+    "columns": [
+      {
+        "name": "workflowid",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "name",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "description",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "process_type",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "status",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "agents",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "tasks",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "triggers",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "logs",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "outputs",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "created_at",
+        "type": "DATETIME",
+        "nullable": false
+      },
+      {
+        "name": "updated_at",
+        "type": "DATETIME",
+        "nullable": true
+      }
+    ]
+  },
+  "BKP_AI_ChatBot_TriggerRules": {
+    "columns": [
+      {
+        "name": "CB_ID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "TriggerType",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "TableName",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "KPI",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "BadIsGood",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "DaysToExecute",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Severity",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "DaysToExcuse",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "TriggerLow",
+        "type": "DECIMAL(10, 2)",
+        "nullable": true
+      },
+      {
+        "name": "TriggerHigh",
+        "type": "DECIMAL(10, 2)",
+        "nullable": true
+      },
+      {
+        "name": "ChatGPTPromptLowTrigger",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ChatGPTPromptHighTrigger",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "DynamicProcessing",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "AgentID",
+        "type": "INTEGER",
+        "nullable": true
+      }
+    ]
+  },
+  "Run_0717": {
+    "columns": [
+      {
+        "name": "CBM_ID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "CB_ID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Name",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "UserID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "PhoneNumber",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Email",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "TriggerType",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "TriggerLevel",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "KPI",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "KPI_Trigger",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Severity",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ChatGPTPromptTrigger",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "InsertDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "Completed",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "CompletedDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "AgentID",
+        "type": "INTEGER",
+        "nullable": true
+      }
+    ]
+  },
+  "Test_AI_ChatBot_TestSurveyData": {
+    "columns": [
+      {
+        "name": "ID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "UserID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ClassEventID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "MissedQuestion",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "QuestionDetails",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Used",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "InsertDate",
+        "type": "DATETIME",
+        "nullable": true
+      }
+    ]
+  },
+  "Test_IP": {
+    "columns": [
+      {
+        "name": "FirstName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "PhoneNumber",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Email",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "UserID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "InterviewDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "NoofDays",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "LogInterviewID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "QID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Job_Title",
+        "type": "NVARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Job_Description",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Recruiter_First_Name",
+        "type": "NVARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Recruiter_Last_Name",
+        "type": "NVARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Recruiter_Email_Address",
+        "type": "NVARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Company_name",
+        "type": "NVARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "SetName",
+        "type": "NVARCHAR(200) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "CandidateID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "SurveyResponse",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "InterviewType",
+        "type": "VARCHAR(9) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Preparationscore",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "AutoInterviewsCount",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "AutoMocks_Overall_score_AVG",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "AutoMocks_Overall_score_MAX",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "AutoMockFeedback_ChatGPT",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "AutoInterviewsDuration",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "MentorInterviewsCount",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "MentorInterviewsDuration",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Mentor",
+        "type": "NVARCHAR(101) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Applicant",
+        "type": "NVARCHAR(101) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Recruiter_InterviewCount",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Technical_InterviewCount",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "InterviewScore",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "InterviewMinutes",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "StudentPrep_Xaxis",
+        "type": "NUMERIC(25, 13)",
+        "nullable": true
+      },
+      {
+        "name": "StudentPrep_Yaxis",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "MentorPrep_Xaxis",
+        "type": "NUMERIC(18, 6)",
+        "nullable": true
+      },
+      {
+        "name": "MentorPrep_Yaxis",
+        "type": "NVARCHAR(4000) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "MenteeFutureInterviews",
+        "type": "VARCHAR(6734) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "ChatGPT_prompt",
+        "type": "VARCHAR(1000) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      }
+    ]
+  },
+  "Test_IPBC": {
+    "columns": [
+      {
+        "name": "CurrentConversation",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "GroupStatus",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "UpcomingClasses",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "UpcomingEvents",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "FAQ",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "MM_Student",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "FirstName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Email",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "MM_Mentor",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "MentorEmail",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "SuperMentor",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "SuperMentorEmail",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "PerComp_Act",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "PerOnPace",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "LastHWSubmitted",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastHWSubmittedDays",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "WksInProgram",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "WksInProgramInt",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "IPBC_StartDate",
+        "type": "DATE",
+        "nullable": true
+      },
+      {
+        "name": "Phase1_PerComp",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "DaysToMarket",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Est_MarketDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "CurrentHWSectionID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "CurrentHWSection",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "CurrentHWAssignment",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastActivitySection",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastActivitySectionOrder",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ActiveStatus",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "GroupOrderid",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "DetailOrderid",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ActiveUsers",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "StatusI",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "StatusII",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Total_Payments",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "Total_Credits",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "UserID",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "StudentProfile",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "UserName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "PhoneNumber",
+        "type": "NVARCHAR(50) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "PathName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ClassName",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ClassSignupsID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "UserKey",
+        "type": "NVARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "FeePaid",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "ClassFeesPaid",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "ClassCredits",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "ClassValue",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "IPBC_FeesPaid",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "IPBC_CurrentlyDue",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "IPBC_Credits",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "CancelReason",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "LastActivityDays",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "LastLoginDays",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "Past10DaysLogon",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "IsJRPActive",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "IsIPBCActive",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "IsClassActive",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "IsRegistered",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "AppAccess",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "StatusDesc",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "SMI_Status",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "RegisterDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "StudentStartDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "ClassStartDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "ClassEndDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "IPBCStartDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "JRP_StartDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "StudentEndDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "LastActivity",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "LastLoginDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "DaysInStatus",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "COEId",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "COE_Name",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "BCP_ID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "BCP_Name",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "PTP_Name",
+        "type": "NVARCHAR(255) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "CompPer",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "ProjectWk_SD",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "DaysInWk",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "TaskMgt",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "TaskEff",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "StagnantWks",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "CompPer_PI",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "ListURL",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ChatGPT_Prompt",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "DataDictionary",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "InsertDate",
+        "type": "DATETIME",
+        "nullable": true
+      }
+    ]
+  },
+  "Test_TriggerRules": {
+    "columns": [
+      {
+        "name": "CB_ID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "TriggerType",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "TableName",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "KPI",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "BadIsGood",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "DaysToExecute",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Severity",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "DaysToExcuse",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "TriggerLow",
+        "type": "DECIMAL(10, 2)",
+        "nullable": true
+      },
+      {
+        "name": "TriggerHigh",
+        "type": "DECIMAL(10, 2)",
+        "nullable": true
+      },
+      {
+        "name": "ChatGPTPromptLowTrigger",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "ChatGPTPromptHighTrigger",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "DynamicProcessing",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "AgentID",
+        "type": "INTEGER",
+        "nullable": true
+      }
+    ]
+  },
+  "Test_Tusers": {
+    "columns": [
+      {
+        "name": "CBM_ID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "CB_ID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Name",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "UserID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "PhoneNumber",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Email",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "TriggerType",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "TriggerLevel",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "KPI",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "KPI_Trigger",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Severity",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "ChatGPTPromptTrigger",
+        "type": "VARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "InsertDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "Completed",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "CompletedDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "AgentID",
+        "type": "INTEGER",
+        "nullable": true
+      }
+    ]
+  },
+  "TopicKeywordMap": {
+    "columns": [
+      {
+        "name": "KPI",
+        "type": "VARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Keyword",
+        "type": "VARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      }
+    ]
+  },
+  "vw_ColaberryInterviewPreparation_UpcomingInterviews_Processed": {
+    "columns": [
+      {
+        "name": "InterviewDate",
+        "type": "DATETIME",
+        "nullable": true
+      },
+      {
+        "name": "NoofDays",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "LogInterviewID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "QID",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Job_Title",
+        "type": "NVARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "Job_Description",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Recruiter_First_Name",
+        "type": "NVARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Recruiter_Last_Name",
+        "type": "NVARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Recruiter_Email_Address",
+        "type": "NVARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Company_name",
+        "type": "NVARCHAR(100) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "SetName",
+        "type": "NVARCHAR(200) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "CandidateID",
+        "type": "INTEGER",
+        "nullable": false
+      },
+      {
+        "name": "SurveyResponse",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "InterviewType",
+        "type": "VARCHAR(9) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Preparationscore",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "AutoInterviewsCount",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "AutoMocks_Overall_score_AVG",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "AutoMocks_Overall_score_MAX",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "AutoMockFeedback_ChatGPT",
+        "type": "NVARCHAR COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "AutoInterviewsDuration",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "MentorInterviewsCount",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "MentorInterviewsDuration",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Mentor",
+        "type": "NVARCHAR(101) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Applicant",
+        "type": "NVARCHAR(101) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "Recruiter_InterviewCount",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "Technical_InterviewCount",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "InterviewScore",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "InterviewMinutes",
+        "type": "INTEGER",
+        "nullable": true
+      },
+      {
+        "name": "StudentPrep_Xaxis",
+        "type": "NUMERIC(25, 13)",
+        "nullable": true
+      },
+      {
+        "name": "StudentPrep_Yaxis",
+        "type": "FLOAT",
+        "nullable": true
+      },
+      {
+        "name": "MentorPrep_Xaxis",
+        "type": "NUMERIC(18, 6)",
+        "nullable": true
+      },
+      {
+        "name": "MentorPrep_Yaxis",
+        "type": "NVARCHAR(4000) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": true
+      },
+      {
+        "name": "MenteeFutureInterviews",
+        "type": "VARCHAR(6734) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      },
+      {
+        "name": "ChatGPT_prompt",
+        "type": "VARCHAR(1000) COLLATE \"SQL_Latin1_General_CP1_CI_AS\"",
+        "nullable": false
+      }
+    ]
+  }
+}
