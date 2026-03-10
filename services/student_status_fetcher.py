@@ -56,6 +56,13 @@ class DbStudentStatusFetcher:
         If no row exists in AI_ChatBot_TriggerData for that UserID.
     """
 
+    def fetch_status(self, student_id: str) -> dict[str, str]:
+        student = self.get_student(student_id)
+        return {
+            "lifecycle_stage": student["active_status"] or "unknown",
+            "summary": student["status_summary"] or "",
+        }
+
     def get_student(self, student_id: str) -> dict:
         if SessionLocal is None:
             raise RuntimeError(
