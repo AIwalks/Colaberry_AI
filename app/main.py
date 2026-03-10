@@ -13,10 +13,11 @@ from fastapi import Depends, FastAPI, Header, Request
 
 from config.request_context import clear_request_id, set_request_id
 
+from config.database import SessionLocal
 from config.logging import configure_logging
 from services.mentor_message_service import MentorMessageService
-from services.student_status_fetcher import StudentStatusFetcher, StubStudentStatusFetcher
-from services.trigger_processing_service import TriggerProcessingService
+from services.student_status_fetcher import DbStudentStatusFetcher, StudentStatusFetcher, StubStudentStatusFetcher
+from services.trigger_processing_service import DbTriggerProcessingService, TriggerProcessingService
 from pydantic import BaseModel, field_validator
 
 @asynccontextmanager
@@ -134,6 +135,8 @@ class MentorMessageResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 def get_student_status_fetcher() -> StudentStatusFetcher:
+    if SessionLocal is not None:
+        return DbStudentStatusFetcher()
     return StubStudentStatusFetcher()
 
 
@@ -153,7 +156,16 @@ def post_mentor_message(
     return MentorMessageResponse(**result)
 
 
+def get_trigger_processing_service():
+    if SessionLocal is not None:
+        return DbTriggerProcessingService()
+    return TriggerProcessingService()
+
+
 @app.post("/ai/trigger/process", response_model=TriggerProcessResponse)
-def post_trigger_process(body: TriggerProcessRequest) -> TriggerProcessResponse:
-    result = TriggerProcessingService().process(body.model_dump())
+def post_trigger_process(
+    body: TriggerProcessRequest,
+    svc=Depends(get_trigger_processing_service),
+) -> TriggerProcessResponse:
+    result = svc.process(body.model_dump())
     return TriggerProcessResponse(**result)
