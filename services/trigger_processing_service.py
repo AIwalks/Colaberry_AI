@@ -4,6 +4,8 @@ from datetime import datetime
 
 from sqlalchemy import select
 
+from services.engagement_tracker_service import EngagementTrackerService
+
 # ---------------------------------------------------------------------------
 # Action map — (trigger_type, trigger_level) → actions_planned
 # Used by TriggerEvaluator._actions_for() and kept here alongside _TRIGGER_MAP
@@ -224,6 +226,26 @@ class DbTriggerProcessingService:
             )
             session.add(triggered)
             session.commit()
+
+        # 5. Log engagement event — must never stop trigger processing
+        if isinstance(event_id, int):
+            safe_trigger_id = event_id
+        elif isinstance(event_id, str) and event_id.isdigit():
+            safe_trigger_id = int(event_id)
+        else:
+            safe_trigger_id = None
+
+        try:
+            EngagementTrackerService().log_event(
+                user_id    = user_id,
+                event_type = "trigger",
+                channel    = None,
+                message    = f"Trigger {trigger_type} level {eval_result['trigger_level']}",
+                agent_name = "TriggerProcessingService",
+                trigger_id = safe_trigger_id,
+            )
+        except Exception:
+            pass
 
         return {
             "event_id":        event_id,
