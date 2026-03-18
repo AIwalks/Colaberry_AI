@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \":*)",
+      "Bash(python -m alembic revision --rev-id 0001 -m \"add_engagement_events_table\")",
+      "Bash(python -m pytest tests/unit/ -v)"
+    ]
+  }
+}

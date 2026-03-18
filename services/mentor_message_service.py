@@ -1,7 +1,16 @@
-"""Orchestrates the mentor-message response (deterministic, no I/O)."""
+"""Orchestrates mentor message flows — inbound acknowledgement and outbound trigger dispatch."""
+
+from config.database import SessionLocal
+from services.audit_log_service import AuditLogService
+from services.engagement_tracker_service import EngagementTrackerService
+from services.models import TriggeredUser
 
 
 class MentorMessageService:
+
+    # ------------------------------------------------------------------
+    # Inbound path — called by POST /ai/mentor/message
+    # ------------------------------------------------------------------
 
     def handle(self, *, body, request_id: str, status_fetcher) -> dict:
         return {
@@ -26,3 +35,61 @@ class MentorMessageService:
                 "event_type": "incoming_message",
             },
         }
+
+    # ------------------------------------------------------------------
+    # Outbound path — called after a trigger is accepted
+    # ------------------------------------------------------------------
+
+    def process_trigger(self, cbm_id: int) -> dict:
+        """Read a TriggeredUser row, log the outbound action, mark it complete.
+
+        Returns
+        -------
+        {"sent": True,  "cbm_id": cbm_id}      — row found and processed
+        {"sent": False, "reason": "not_found"}  — no row for that CBM_ID
+        {"sent": False, "reason": "no_db"}      — SessionLocal not configured
+        """
+        if SessionLocal is None:
+            return {"sent": False, "reason": "no_db"}
+
+        with SessionLocal() as session:
+            triggered: TriggeredUser | None = session.get(TriggeredUser, cbm_id)
+
+            if triggered is None:
+                return {"sent": False, "reason": "not_found"}
+
+            message_text = (
+                f"Trigger {triggered.TriggerType} level {triggered.TriggerLevel}"
+            )
+
+            # Non-blocking — failure must not prevent completion
+            try:
+                AuditLogService().log_event(
+                    phone_number            = None,
+                    entry_type              = "outbound_trigger",
+                    input_message           = None,
+                    output_message          = message_text,
+                    cbm_id                  = cbm_id,
+                    email                   = None,
+                    channel                 = None,
+                    processing_time_seconds = None,
+                )
+            except Exception:
+                pass
+
+            try:
+                EngagementTrackerService().log_event(
+                    user_id    = triggered.UserID,
+                    event_type = "trigger_dispatched",
+                    channel    = None,
+                    message    = message_text,
+                    agent_name = "MentorMessageService",
+                    trigger_id = cbm_id,
+                )
+            except Exception:
+                pass
+
+            triggered.Completed = 1
+            session.commit()
+
+        return {"sent": True, "cbm_id": cbm_id}

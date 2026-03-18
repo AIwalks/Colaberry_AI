@@ -18,7 +18,7 @@ Usage pattern
 
 Read-only models:   TriggerData, TriggerRule
 Read + write:       TriggeredUser, ConversationState
-Write-only:         ChatBotAuditLog
+Write-only:         ChatBotAuditLog, EngagementEvent
 """
 
 from datetime import datetime
@@ -201,4 +201,50 @@ class ChatBotAuditLog(Base):
             f"<ChatBotAuditLog entry_id={self.entry_id} "
             f"entry_type={self.entry_type!r} "
             f"Channel={self.Channel!r}>"
+        )
+
+
+# ---------------------------------------------------------------------------
+# 6. EngagementEvent
+# ---------------------------------------------------------------------------
+
+class EngagementEvent(Base):
+    """Maps to AI_ChatBot_EngagementEvents (write-only, append-only).
+
+    Purpose-built engagement tracking table.  One row per discrete engagement
+    event: a trigger firing, a message sent, a nudge delivered, etc.
+
+    Fields
+    ------
+    id          — autoincrement PK, returned to the caller after insert.
+    user_id     — FK-style reference to AI_ChatBot_TriggerData.UserID; nullable
+                  for system-level or anonymous events.
+    event_type  — required classifier, e.g. "nudge_sent", "trigger_fired".
+    channel     — delivery channel: "whatsapp", "sms", "email", "web", etc.
+    message     — human-readable description or the actual message text.
+    agent_name  — name of the agent that produced the event, e.g. "MentorAgent".
+    trigger_id  — FK-style reference to AI_ChatBot_TriggeredUsers.CBM_ID;
+                  None for events that were not triggered by a rule evaluation.
+    created_at  — set automatically to UTC now on insert; never updated.
+
+    This table is additive only — rows are never modified or deleted.
+    """
+
+    __tablename__ = "AI_ChatBot_EngagementEvents"
+
+    id:         Mapped[int]           = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id:    Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    event_type: Mapped[str]           = mapped_column(String(100), nullable=False)
+    channel:    Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    message:    Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    agent_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    trigger_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    def __repr__(self) -> str:
+        return (
+            f"<EngagementEvent id={self.id} "
+            f"event_type={self.event_type!r} "
+            f"user_id={self.user_id} "
+            f"channel={self.channel!r}>"
         )
