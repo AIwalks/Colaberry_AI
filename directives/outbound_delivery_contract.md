@@ -2,7 +2,15 @@
 
 ## 1. Purpose
 
-`OutboundDeliveryService` is the single outbound channel adapter for the Colaberry AI system. It is called by `MentorMessageService.process_trigger()` after a trigger row is processed and logged. Its job is to deliver a text message to the student via SMS or WhatsApp using Twilio.
+`OutboundDeliveryService` is the single outbound channel adapter for the Colaberry AI system. It is called by `MentorMessageService.process_trigger()` after a trigger row is processed and logged. Its job is to deliver a message to the student via SMS, WhatsApp, or Email.
+
+**Supported delivery channels:**
+
+| Channel | Transport | Credentials |
+|---|---|---|
+| SMS | Twilio REST API | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` |
+| WhatsApp | Twilio REST API (sandbox) | Same as SMS + `OUTBOUND_USE_WHATSAPP=1` |
+| Email | SMTP SSL (stdlib `smtplib`) | `EMAIL_HOST`, `EMAIL_FROM`, `EMAIL_PASSWORD` |
 
 The service is intentionally decoupled from the trigger worker. Delivery failures must never prevent a trigger row from being marked `Completed=1`.
 
@@ -30,26 +38,33 @@ trigger_worker.process_pending_triggers()
 | Field read | Used for |
 |---|---|
 | `PhoneNumber` | Destination address for SMS or WhatsApp |
-| `Email` | Logged in audit print (not yet used for delivery) |
+| `Email` | Destination address for Email delivery |
 | `FirstName` + `LastName` | Logged in audit print |
 
-If `SessionLocal` is `None` (no DB configured), the lookup is skipped and `phone` remains `None`.
+If `SessionLocal` is `None` (no DB configured), the lookup is skipped and both `phone` and `email` remain `None`.
 
 ---
 
-## 4. Test Phone Override
+## 4. Test Overrides
 
-If `OUTBOUND_TEST_PHONE` is set, it replaces the student's real phone number for all sends. This allows safe end-to-end testing without delivering to real students.
+If `OUTBOUND_TEST_PHONE` is set, it replaces the student's real phone number for all sends.
+If `OUTBOUND_TEST_EMAIL` is set, it replaces the student's real email address for all sends.
+Both overrides allow safe end-to-end testing without delivering to real students.
 
 ```
 test_phone = os.environ.get("OUTBOUND_TEST_PHONE", "")
 if test_phone:
     phone = test_phone   # overrides DB value
+
+test_email = os.environ.get("OUTBOUND_TEST_EMAIL", "")
+if test_email:
+    email = test_email   # overrides DB value
 ```
 
-A console line is printed when the override is active:
+Console lines are printed when overrides are active:
 ```
 [OutboundDeliveryService] TEST OVERRIDE phone='...'
+[OutboundDeliveryService] TEST OVERRIDE email='...'
 ```
 
 ---
@@ -69,6 +84,8 @@ The WhatsApp sandbox number `+14155238886` is the Twilio development sandbox. Re
 
 ## 6. Environment Variables
 
+### Twilio (SMS / WhatsApp)
+
 | Env var | Required | Purpose |
 |---|---|---|
 | `TWILIO_ACCOUNT_SID` | No | Twilio account identifier. If absent, Twilio call is skipped silently. |
@@ -79,11 +96,22 @@ The WhatsApp sandbox number `+14155238886` is the Twilio development sandbox. Re
 
 All three Twilio vars must be present and non-empty, **and** `phone` must be non-None, for a send to be attempted. Any missing value silently skips the Twilio call and returns `True`.
 
+### Email (SMTP)
+
+| Env var | Required | Purpose |
+|---|---|---|
+| `EMAIL_HOST` | No | SMTP server hostname. If absent, email send is skipped silently. |
+| `EMAIL_FROM` | No | Sender email address. If absent, email send is skipped silently. |
+| `EMAIL_PASSWORD` | No | Sender credential for SMTP login. If absent, email send is skipped silently. |
+| `OUTBOUND_TEST_EMAIL` | No | Override destination email. Recommended for all non-production environments. |
+
+All three email vars must be present and non-empty, **and** `email` must be non-None, for a send to be attempted. Any missing value silently skips the email send and returns `True`.
+
 ---
 
 ## 7. Non-Blocking Failure Behaviour
 
-Delivery is wrapped in two levels of exception handling:
+Every channel is wrapped in its own inner try/except. A failure in one channel never prevents another channel from attempting delivery.
 
 ```python
 # Inner — Twilio errors are caught and printed, never re-raised
@@ -92,6 +120,15 @@ try:
     print(f"[TWILIO SENT] sid={msg.sid}")
 except Exception as e:
     print(f"[TWILIO ERROR] {e}")
+
+# Inner — Email errors are caught and printed, never re-raised
+try:
+    with smtplib.SMTP_SSL(email_host) as server:
+        server.login(email_from, email_password)
+        server.sendmail(email_from, email, msg.as_string())
+    print(f"[EMAIL SENT] to={email!r}")
+except Exception as e:
+    print(f"[EMAIL ERROR] {e}")
 
 # Outer — any other error returns False without propagating
 except Exception:
@@ -113,8 +150,11 @@ Every call to `send_text()` produces at least one console line regardless of del
 Additional lines when applicable:
 ```
 [OutboundDeliveryService] TEST OVERRIDE phone='+15550000000'
+[OutboundDeliveryService] TEST OVERRIDE email='test@example.com'
 [OutboundDeliveryService][TWILIO SENT] sid=SMxxxxxxxx
 [OutboundDeliveryService][TWILIO ERROR] <exception message>
+[OutboundDeliveryService][EMAIL SENT] to='student@example.com'
+[OutboundDeliveryService][EMAIL ERROR] <exception message>
 ```
 
 ---
@@ -122,9 +162,10 @@ Additional lines when applicable:
 ## 9. Testability Requirements
 
 - All unit tests must mock `twilio.rest.Client` — no real Twilio calls
+- All unit tests must mock `smtplib.SMTP_SSL` — no real SMTP connections
 - `SessionLocal` must be patchable to `None` to skip DB lookup
-- `OUTBOUND_TEST_PHONE` must be settable via `monkeypatch.setenv`
-- Tests must not depend on network, Twilio account, or real student data
+- `OUTBOUND_TEST_PHONE` and `OUTBOUND_TEST_EMAIL` must be settable via `monkeypatch.setenv`
+- Tests must not depend on network, Twilio account, SMTP server, or real student data
 
 See: `tests/unit/test_outbound_delivery_service.py`
 
@@ -134,8 +175,11 @@ See: `tests/unit/test_outbound_delivery_service.py`
 
 - [x] `OutboundDeliveryService` exists at `services/outbound_delivery_service.py`
 - [x] SMS and WhatsApp branches implemented and unit tested
+- [x] Email branch implemented and unit tested
 - [x] `OUTBOUND_TEST_PHONE` override implemented and unit tested
+- [x] `OUTBOUND_TEST_EMAIL` override implemented and unit tested
 - [x] Delivery failure is non-blocking — never propagates to trigger worker
 - [x] Called by `MentorMessageService.process_trigger()` before `Completed=1`
 - [x] No Twilio credentials required for tests to pass
+- [x] No SMTP credentials required for tests to pass
 - [x] No secrets in repository

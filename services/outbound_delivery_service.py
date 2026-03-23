@@ -75,6 +75,30 @@ class OutboundDeliveryService:
                 except Exception as e:
                     print(f"[OutboundDeliveryService][TWILIO ERROR] {e}")
 
+            test_email = os.environ.get("OUTBOUND_TEST_EMAIL", "")
+            if test_email:
+                print(f"[OutboundDeliveryService] TEST OVERRIDE email={test_email!r}")
+                email = test_email
+
+            email_host     = os.environ.get("EMAIL_HOST", "")
+            email_from     = os.environ.get("EMAIL_FROM", "")
+            email_password = os.environ.get("EMAIL_PASSWORD", "")
+
+            if email_host and email_from and email_password and email:
+                try:
+                    import smtplib
+                    from email.mime.text import MIMEText
+                    msg = MIMEText(message)
+                    msg["Subject"] = "Message from Colaberry AI"
+                    msg["From"]    = email_from
+                    msg["To"]      = email
+                    with smtplib.SMTP_SSL(email_host) as server:
+                        server.login(email_from, email_password)
+                        server.sendmail(email_from, email, msg.as_string())
+                    print(f"[OutboundDeliveryService][EMAIL SENT] to={email!r}")
+                except Exception as e:
+                    print(f"[OutboundDeliveryService][EMAIL ERROR] {e}")
+
             return True
         except Exception:
             return False
