@@ -4,7 +4,7 @@
 
 This endpoint receives inbound messages from students across any supported channel (WhatsApp, SMS, email, voice, web). It acts as the single entry point for the Colaberry AI mentoring system.
 
-In this initial phase the endpoint validates the request, echoes back a deterministic acknowledgement, and logs the event. No AI generation, student lookup, or external delivery occurs yet.
+The endpoint validates the request, looks up the student's lifecycle status from `AI_ChatBot_TriggerData`, echoes back a deterministic acknowledgement, and writes to both `AI_ChatBot_AuditLog` and `AI_ChatBot_EngagementEvents`. Outbound delivery via `OutboundDeliveryService` is wired into the trigger worker path (not the inbound message path directly).
 
 ---
 
@@ -71,12 +71,12 @@ The response body is `application/json` with exactly these top-level keys:
 
 ### Deterministic Placeholder Rules
 
-These values are **hardcoded** for now — no external calls, no AI generation:
+These values are fixed — no AI generation:
 
 | Field | Fixed Value |
 |---|---|
-| `student_status.lifecycle_stage` | `"unknown"` |
-| `student_status.summary` | `"Status lookup not yet connected"` |
+| `student_status.lifecycle_stage` | Real value from `AI_ChatBot_TriggerData.ActiveStatus` — falls back to `"unknown"` if student not found |
+| `student_status.summary` | Real value from `AI_ChatBot_TriggerData.StatusII` — falls back to `"Student not found."` if not found |
 | `delivery.constraints.max_length` | `1000` |
 | `response_message.text` | `"Your message has been received and logged. A mentor will follow up shortly."` |
 | `engagement_log.logged` | `true` |
@@ -97,15 +97,31 @@ No custom error handling is needed beyond what FastAPI and Pydantic provide out 
 
 ## 6. Non-Goals (Explicit)
 
-These are **out of scope** for this phase:
+These are **out of scope** for the inbound message path:
 
-- No database reads or writes
-- No external messaging (Twilio, Mandrill, voice providers)
-- No real student lookup or lifecycle resolution
-- No async workers or background tasks
 - No AI-generated response text
+- No real-time outbound delivery on the inbound path — outbound is handled by the trigger worker via `OutboundDeliveryService`
 
-Each of these will be introduced in future directives with their own contracts and tests.
+---
+
+## 6a. Runtime Behaviour Now Active
+
+The following are live at runtime when `MSSQL_DATABASE_URL` is set:
+
+- **Student lookup:** `DbStudentStatusFetcher` reads `AI_ChatBot_TriggerData` by `UserID`; returns `lifecycle_stage` and `summary`
+- **Audit log:** `AuditLogService` writes to `AI_ChatBot_AuditLog` on every inbound request (`entry_type="incoming_message"`)
+- **Engagement event:** `EngagementTrackerService` writes to `AI_ChatBot_EngagementEvents` on every inbound request (`event_type="incoming_message"`)
+- **Outbound delivery (trigger path):** `OutboundDeliveryService.send_text()` is called by `MentorMessageService.process_trigger()` after a trigger row is processed; stamps `CompletedDate = datetime.utcnow()` and `Completed = 1` on the `TriggeredUser` row
+
+### Outbound delivery env vars
+
+| Env var | Purpose | Required |
+|---|---|---|
+| `TWILIO_ACCOUNT_SID` | Twilio account identifier | No — if absent, delivery is skipped silently |
+| `TWILIO_AUTH_TOKEN` | Twilio auth token | No — if absent, delivery is skipped silently |
+| `TWILIO_FROM_NUMBER` | Sending phone number (SMS) | No — if absent, delivery is skipped silently |
+| `OUTBOUND_USE_WHATSAPP` | Set to `"1"` to send via WhatsApp sandbox | No — defaults to SMS |
+| `OUTBOUND_TEST_PHONE` | Override destination phone for all sends | No — uses student's real `PhoneNumber` from DB if absent |
 
 ---
 
@@ -135,9 +151,11 @@ All tests must live under `tests/unit/`.
 
 ## 8. Definition of Done
 
-- [ ] This directive exists at `directives/ai_mentor_message_contract.md` and is clear to a junior developer
-- [ ] Endpoint implementation exists in `app/` (thin route) with models validated by Pydantic
-- [ ] All 7 test cases from Section 7 pass locally via `pytest tests/unit/`
-- [ ] No secrets introduced in the repository
-- [ ] Layer boundaries respected: the route handler contains no business logic beyond validation and the fixed response — real logic will move to `/execution` in future phases
-- [ ] No external services called during tests or at runtime
+- [x] This directive exists at `directives/ai_mentor_message_contract.md` and is clear to a junior developer
+- [x] Endpoint implementation exists in `app/` (thin route) with models validated by Pydantic
+- [x] All 7 test cases from Section 7 pass locally via `pytest tests/unit/`
+- [x] No secrets introduced in the repository
+- [x] Layer boundaries respected: route handler is thin; business logic in `services/`
+- [x] Student lookup, audit log, and engagement event writes are live and tested
+- [x] Outbound delivery wired into trigger worker path with unit tests
+- [x] `CompletedDate` stamped on trigger completion, verified by test

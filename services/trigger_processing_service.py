@@ -12,12 +12,35 @@ from services.engagement_tracker_service import EngagementTrackerService
 # so all deterministic mappings live in one place.
 # ---------------------------------------------------------------------------
 _ACTION_MAP: dict[tuple[str, str], list[str]] = {
-    ("nudge_needed",        "Low"):    ["queue_nudge_message"],
-    ("nudge_needed",        "High"):   ["queue_nudge_message"],
-    ("nudge_needed",        "Unknown"):["queue_nudge_message"],
-    ("progress_milestone",  "Low"):    ["queue_congrats_message"],
-    ("progress_milestone",  "High"):   ["queue_congrats_message"],
-    ("progress_milestone",  "Unknown"):["queue_congrats_message"],
+    # Stub types — retained for existing unit tests
+    ("nudge_needed",        "Low"):     ["queue_nudge_message"],
+    ("nudge_needed",        "High"):    ["queue_nudge_message"],
+    ("nudge_needed",        "Unknown"): ["queue_nudge_message"],
+    ("progress_milestone",  "Low"):     ["queue_congrats_message"],
+    ("progress_milestone",  "High"):    ["queue_congrats_message"],
+    ("progress_milestone",  "Unknown"): ["queue_congrats_message"],
+    # Real TriggerType values from AI_ChatBot_TriggerRules
+    ("All",               "Low"):     ["queue_outbound_message"],
+    ("All",               "High"):    ["queue_outbound_message"],
+    ("All",               "Unknown"): ["queue_outbound_message"],
+    ("Capstone",          "Low"):     ["queue_outbound_message"],
+    ("Capstone",          "High"):    ["queue_outbound_message"],
+    ("Capstone",          "Unknown"): ["queue_outbound_message"],
+    ("InClass",           "Low"):     ["queue_outbound_message"],
+    ("InClass",           "High"):    ["queue_outbound_message"],
+    ("InClass",           "Unknown"): ["queue_outbound_message"],
+    ("InterviewPast4Wks", "Low"):     ["queue_outbound_message"],
+    ("InterviewPast4Wks", "High"):    ["queue_outbound_message"],
+    ("InterviewPast4Wks", "Unknown"): ["queue_outbound_message"],
+    ("InterviewPrep",     "Low"):     ["queue_outbound_message"],
+    ("InterviewPrep",     "High"):    ["queue_outbound_message"],
+    ("InterviewPrep",     "Unknown"): ["queue_outbound_message"],
+    ("IPBC",              "Low"):     ["queue_outbound_message"],
+    ("IPBC",              "High"):    ["queue_outbound_message"],
+    ("IPBC",              "Unknown"): ["queue_outbound_message"],
+    ("PostInterview",     "Low"):     ["queue_outbound_message"],
+    ("PostInterview",     "High"):    ["queue_outbound_message"],
+    ("PostInterview",     "Unknown"): ["queue_outbound_message"],
 }
 
 

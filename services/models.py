@@ -42,6 +42,7 @@ class TriggerData(Base):
     Used by:
       - StudentStatusFetcher  → ActiveStatus, StatusI, StatusII
       - MentorMessageService  → FirstName, LastName, Email, PhoneNumber
+      - TriggerEvaluator      → KPI columns below (read via getattr)
     """
 
     __tablename__ = "AI_ChatBot_TriggerData"
@@ -55,6 +56,21 @@ class TriggerData(Base):
     ActiveStatus: Mapped[Optional[str]] = mapped_column(String(10))
     StatusI: Mapped[Optional[str]] = mapped_column(String(10))
     StatusII: Mapped[Optional[str]] = mapped_column(String(4000))
+
+    # KPI columns — read by TriggerEvaluator via getattr(student, rule.KPI)
+    Past10DaysLogon:          Mapped[Optional[int]]   = mapped_column(Integer,  nullable=True)
+    LastActivityDays:         Mapped[Optional[int]]   = mapped_column(Integer,  nullable=True)
+    LastLoginDays:            Mapped[Optional[int]]   = mapped_column(Integer,  nullable=True)
+    DaysInStatus:             Mapped[Optional[int]]   = mapped_column(Integer,  nullable=True)
+    HWsBehind:                Mapped[Optional[int]]   = mapped_column(Integer,  nullable=True)
+    AttendancePercentage:     Mapped[Optional[float]] = mapped_column(Float,    nullable=True)
+    AvgHWScore:               Mapped[Optional[float]] = mapped_column(Float,    nullable=True)
+    AvgEffRating:             Mapped[Optional[float]] = mapped_column(Float,    nullable=True)
+    NoOfAssignmentsSubmitted: Mapped[Optional[int]]   = mapped_column(Integer,  nullable=True)
+    TotalNoOfAssignments:     Mapped[Optional[int]]   = mapped_column(Integer,  nullable=True)
+    Total_Payments:           Mapped[Optional[float]] = mapped_column(Float,    nullable=True)
+    PaymentBalance:           Mapped[Optional[int]]   = mapped_column(Integer,  nullable=True)
+    IsClassActive:            Mapped[Optional[int]]   = mapped_column(Integer,  nullable=True)
 
     def __repr__(self) -> str:
         return (

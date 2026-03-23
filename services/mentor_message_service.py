@@ -1,8 +1,10 @@
 """Orchestrates mentor message flows — inbound acknowledgement and outbound trigger dispatch."""
 
+from datetime import datetime
 from config.database import SessionLocal
 from services.audit_log_service import AuditLogService
 from services.engagement_tracker_service import EngagementTrackerService
+from services.outbound_delivery_service import OutboundDeliveryService
 from services.models import TriggeredUser
 
 
@@ -13,7 +15,7 @@ class MentorMessageService:
     # ------------------------------------------------------------------
 
     def handle(self, *, body, request_id: str, status_fetcher) -> dict:
-        return {
+        result = {
             "request_id": request_id,
             "received": {
                 "student_id": body.student_id,
@@ -35,6 +37,34 @@ class MentorMessageService:
                 "event_type": "incoming_message",
             },
         }
+
+        try:
+            AuditLogService().log_event(
+                phone_number=None,
+                entry_type="incoming_message",
+                input_message=body.message,
+                output_message=result["response_message"]["text"],
+                cbm_id=None,
+                email=None,
+                channel=body.channel if isinstance(body.channel, str) else body.channel.value,
+                processing_time_seconds=None,
+            )
+        except Exception:
+            pass
+
+        try:
+            EngagementTrackerService().log_event(
+                user_id=None,
+                event_type="incoming_message",
+                channel=body.channel if isinstance(body.channel, str) else body.channel.value,
+                message=body.message,
+                agent_name="MentorMessageService",
+                trigger_id=None,
+            )
+        except Exception:
+            pass
+
+        return result
 
     # ------------------------------------------------------------------
     # Outbound path — called after a trigger is accepted
@@ -89,7 +119,13 @@ class MentorMessageService:
             except Exception:
                 pass
 
+            OutboundDeliveryService().send_text(
+                user_id=triggered.UserID,
+                message=message_text,
+            )
+
             triggered.Completed = 1
+            triggered.CompletedDate = datetime.utcnow()
             session.commit()
 
         return {"sent": True, "cbm_id": cbm_id}

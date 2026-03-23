@@ -57,7 +57,13 @@ class DbStudentStatusFetcher:
     """
 
     def fetch_status(self, student_id: str) -> dict[str, str]:
-        student = self.get_student(student_id)
+        try:
+            student = self.get_student(student_id)
+        except ValueError:
+            return {
+                "lifecycle_stage": "unknown",
+                "summary": "Student not found.",
+            }
         return {
             "lifecycle_stage": student["active_status"] or "unknown",
             "summary": student["status_summary"] or "",

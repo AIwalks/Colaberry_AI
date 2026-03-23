@@ -62,6 +62,8 @@ def test_process_trigger_marks_completed_and_returns_sent():
             assert result["cbm_id"] == cbm_id
             assert row is not None,     "TriggeredUser row should still exist"
             assert row.Completed  == 1, f"Expected Completed=1, got {row.Completed}"
+            assert row.CompletedDate is not None, \
+                "CompletedDate must be set when Completed=1"
         finally:
             if row is not None:
                 session.delete(row)

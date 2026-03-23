@@ -189,3 +189,85 @@ def test_evaluate_notes_includes_cb_id_kpi_and_level():
     assert "CB_ID=1"        in result["notes"]
     assert "PerComp_Act"    in result["notes"]
     assert "Low"            in result["notes"]
+
+
+# ---------------------------------------------------------------------------
+# Real DB TriggerType values — _actions_for
+# ---------------------------------------------------------------------------
+
+def test_actions_for_inclass_low_returns_outbound():
+    actions = TriggerEvaluator()._actions_for("InClass", "Low")
+    assert actions == ["queue_outbound_message"]
+
+
+def test_actions_for_inclass_high_returns_outbound():
+    actions = TriggerEvaluator()._actions_for("InClass", "High")
+    assert actions == ["queue_outbound_message"]
+
+
+def test_actions_for_inclass_unknown_returns_outbound():
+    actions = TriggerEvaluator()._actions_for("InClass", "Unknown")
+    assert actions == ["queue_outbound_message"]
+
+
+def test_actions_for_postinterview_low_returns_outbound():
+    actions = TriggerEvaluator()._actions_for("PostInterview", "Low")
+    assert actions == ["queue_outbound_message"]
+
+
+def test_actions_for_all_real_trigger_types_produce_outbound_action():
+    real_types = ["All", "Capstone", "InClass", "InterviewPast4Wks",
+                  "InterviewPrep", "IPBC", "PostInterview"]
+    for trigger_type in real_types:
+        for level in ("Low", "High", "Unknown"):
+            actions = TriggerEvaluator()._actions_for(trigger_type, level)
+            assert actions == ["queue_outbound_message"], (
+                f"Expected ['queue_outbound_message'] for ({trigger_type!r}, {level!r}), got {actions}"
+            )
+
+
+# ---------------------------------------------------------------------------
+# KPI column lookup — TriggerData columns read via getattr
+# ---------------------------------------------------------------------------
+
+class FakeRuleKPI:
+    """Mirrors CB_ID=1 from AI_ChatBot_TriggerRules."""
+    CB_ID       = 1
+    TriggerType = "InClass"
+    KPI         = "Past10DaysLogon"
+    TriggerLow  = 4.0
+    TriggerHigh = 8.0
+
+
+def test_kpi_column_past10dayslogon_low_is_read_correctly():
+    """KPI value < TriggerLow must produce level=Low, not Unknown."""
+    class StudentLow:
+        Past10DaysLogon = 2   # below TriggerLow=4
+
+    result = TriggerEvaluator().evaluate(FakeRuleKPI(), StudentLow(), event_id="K1")
+
+    assert result["trigger_level"] == "Low", \
+        f"Expected Low, got {result['trigger_level']!r} — KPI column not read"
+    assert result["actions_planned"] == ["queue_outbound_message"]
+
+
+def test_kpi_column_past10dayslogon_high_is_read_correctly():
+    """KPI value > TriggerHigh must produce level=High, not Unknown."""
+    class StudentHigh:
+        Past10DaysLogon = 9   # above TriggerHigh=8
+
+    result = TriggerEvaluator().evaluate(FakeRuleKPI(), StudentHigh(), event_id="K2")
+
+    assert result["trigger_level"] == "High", \
+        f"Expected High, got {result['trigger_level']!r} — KPI column not read"
+    assert result["actions_planned"] == ["queue_outbound_message"]
+
+
+def test_kpi_column_missing_from_student_falls_back_to_unknown():
+    """If student object lacks the KPI attribute, level must be Unknown — not an error."""
+    class StudentNoKPI:
+        pass  # Past10DaysLogon not defined
+
+    result = TriggerEvaluator().evaluate(FakeRuleKPI(), StudentNoKPI(), event_id="K3")
+
+    assert result["trigger_level"] == "Unknown"
