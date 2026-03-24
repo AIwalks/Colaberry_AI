@@ -7,8 +7,9 @@ is wired in.
 """
 
 import os
+from datetime import datetime
 from config.database import SessionLocal
-from services.models import TriggerData
+from services.models import DeliveryLog, TriggerData
 
 
 class OutboundDeliveryService:
@@ -57,9 +58,12 @@ class OutboundDeliveryService:
             from_number = os.environ.get("TWILIO_FROM_NUMBER", "")
 
             if account_sid and auth_token and from_number and phone:
+                _twilio_channel = "whatsapp" if os.environ.get("OUTBOUND_USE_WHATSAPP") == "1" else "sms"
+                _twilio_success = False
+                _twilio_error   = None
                 try:
                     from twilio.rest import Client
-                    use_whatsapp = os.environ.get("OUTBOUND_USE_WHATSAPP") == "1"
+                    use_whatsapp = _twilio_channel == "whatsapp"
                     if use_whatsapp:
                         from_addr = "whatsapp:+14155238886"
                         to_addr   = f"whatsapp:{phone}"
@@ -72,8 +76,24 @@ class OutboundDeliveryService:
                         to=to_addr,
                     )
                     print(f"[OutboundDeliveryService][TWILIO SENT] sid={msg.sid}")
+                    _twilio_success = True
                 except Exception as e:
+                    _twilio_error = str(e)
                     print(f"[OutboundDeliveryService][TWILIO ERROR] {e}")
+                try:
+                    if SessionLocal is not None:
+                        with SessionLocal() as _log:
+                            _log.add(DeliveryLog(
+                                cbm_id        = None,
+                                user_id       = user_id,
+                                channel       = _twilio_channel,
+                                success       = _twilio_success,
+                                error_message = _twilio_error,
+                                created_on    = datetime.utcnow(),
+                            ))
+                            _log.commit()
+                except Exception:
+                    pass
 
             test_email = os.environ.get("OUTBOUND_TEST_EMAIL", "")
             if test_email:
@@ -85,6 +105,8 @@ class OutboundDeliveryService:
             email_password = os.environ.get("EMAIL_PASSWORD", "")
 
             if email_host and email_from and email_password and email:
+                _email_success = False
+                _email_error   = None
                 try:
                     import smtplib
                     from email.mime.text import MIMEText
@@ -96,8 +118,24 @@ class OutboundDeliveryService:
                         server.login(email_from, email_password)
                         server.sendmail(email_from, email, msg.as_string())
                     print(f"[OutboundDeliveryService][EMAIL SENT] to={email!r}")
+                    _email_success = True
                 except Exception as e:
+                    _email_error = str(e)
                     print(f"[OutboundDeliveryService][EMAIL ERROR] {e}")
+                try:
+                    if SessionLocal is not None:
+                        with SessionLocal() as _log:
+                            _log.add(DeliveryLog(
+                                cbm_id        = None,
+                                user_id       = user_id,
+                                channel       = "email",
+                                success       = _email_success,
+                                error_message = _email_error,
+                                created_on    = datetime.utcnow(),
+                            ))
+                            _log.commit()
+                except Exception:
+                    pass
 
             return True
         except Exception:

@@ -5,7 +5,8 @@ from config.database import SessionLocal
 from services.audit_log_service import AuditLogService
 from services.engagement_tracker_service import EngagementTrackerService
 from services.outbound_delivery_service import OutboundDeliveryService
-from services.models import TriggeredUser
+from services.models import TriggeredUser, TriggerRule, TriggerData
+from services.trigger_processing_service import TriggerEvaluator
 
 
 class MentorMessageService:
@@ -88,9 +89,14 @@ class MentorMessageService:
             if triggered is None:
                 return {"sent": False, "reason": "not_found"}
 
-            message_text = (
-                f"Trigger {triggered.TriggerType} level {triggered.TriggerLevel}"
-            )
+            _fallback = f"Trigger {triggered.TriggerType} level {triggered.TriggerLevel}"
+            try:
+                rule    = session.get(TriggerRule, triggered.CB_ID) if triggered.CB_ID is not None else None
+                student = session.get(TriggerData, triggered.UserID) if triggered.UserID is not None else None
+                eval_result = TriggerEvaluator().evaluate(rule, student, event_id=str(cbm_id)) if rule is not None else {}
+                message_text = eval_result.get("message_text") or _fallback
+            except Exception:
+                message_text = _fallback
 
             # Non-blocking — failure must not prevent completion
             try:

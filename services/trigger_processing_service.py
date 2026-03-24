@@ -88,11 +88,23 @@ class TriggerEvaluator:
             f"KPI={rule.KPI} value={kpi_value} level={trigger_level}."
         )
 
+        if trigger_level == "Low":
+            message_text = getattr(rule, "ChatGPTPromptLowTrigger", None) or (
+                f"Trigger {rule.TriggerType} level {trigger_level}"
+            )
+        elif trigger_level == "High":
+            message_text = getattr(rule, "ChatGPTPromptHighTrigger", None) or (
+                f"Trigger {rule.TriggerType} level {trigger_level}"
+            )
+        else:
+            message_text = f"Trigger {rule.TriggerType} level {trigger_level}"
+
         return {
-            "event_id":       event_id,
-            "trigger_level":  trigger_level,
+            "event_id":        event_id,
+            "trigger_level":   trigger_level,
             "actions_planned": actions,
-            "notes":          notes,
+            "notes":           notes,
+            "message_text":    message_text,
         }
 
     def _get_kpi_value(self, student, kpi: str | None) -> float | None:

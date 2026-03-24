@@ -271,3 +271,129 @@ def test_kpi_column_missing_from_student_falls_back_to_unknown():
     result = TriggerEvaluator().evaluate(FakeRuleKPI(), StudentNoKPI(), event_id="K3")
 
     assert result["trigger_level"] == "Unknown"
+
+
+# ---------------------------------------------------------------------------
+# message_text — prompt selection from rule columns
+# ---------------------------------------------------------------------------
+
+class FakeRuleWithPrompts:
+    """Rule with both prompt columns populated."""
+    CB_ID                    = 1
+    TriggerType              = "InClass"
+    KPI                      = "Past10DaysLogon"
+    TriggerLow               = 4.0
+    TriggerHigh              = 8.0
+    ChatGPTPromptLowTrigger  = "You are falling behind. Please log in and catch up."
+    ChatGPTPromptHighTrigger = "Great work! You are ahead of the curve."
+
+
+class FakeRuleNoPrompts:
+    """Rule with both prompt columns absent (duck-typed fake, no attributes)."""
+    CB_ID       = 1
+    TriggerType = "InClass"
+    KPI         = "Past10DaysLogon"
+    TriggerLow  = 4.0
+    TriggerHigh = 8.0
+    # ChatGPTPromptLowTrigger and ChatGPTPromptHighTrigger intentionally omitted
+
+
+class FakeRuleNullPrompts:
+    """Rule with prompt columns present but set to None."""
+    CB_ID                    = 1
+    TriggerType              = "InClass"
+    KPI                      = "Past10DaysLogon"
+    TriggerLow               = 4.0
+    TriggerHigh              = 8.0
+    ChatGPTPromptLowTrigger  = None
+    ChatGPTPromptHighTrigger = None
+
+
+def test_message_text_key_is_present_in_result():
+    """evaluate() must always return a message_text key."""
+    class StudentLow:
+        Past10DaysLogon = 2
+
+    result = TriggerEvaluator().evaluate(FakeRuleWithPrompts(), StudentLow(), event_id="M1")
+
+    assert "message_text" in result
+
+
+def test_low_trigger_uses_chatgpt_prompt_low_trigger():
+    """When trigger_level is Low, message_text must equal ChatGPTPromptLowTrigger."""
+    class StudentLow:
+        Past10DaysLogon = 2  # below TriggerLow=4
+
+    result = TriggerEvaluator().evaluate(FakeRuleWithPrompts(), StudentLow(), event_id="M2")
+
+    assert result["trigger_level"] == "Low"
+    assert result["message_text"] == "You are falling behind. Please log in and catch up."
+
+
+def test_high_trigger_uses_chatgpt_prompt_high_trigger():
+    """When trigger_level is High, message_text must equal ChatGPTPromptHighTrigger."""
+    class StudentHigh:
+        Past10DaysLogon = 9  # above TriggerHigh=8
+
+    result = TriggerEvaluator().evaluate(FakeRuleWithPrompts(), StudentHigh(), event_id="M3")
+
+    assert result["trigger_level"] == "High"
+    assert result["message_text"] == "Great work! You are ahead of the curve."
+
+
+def test_missing_prompt_attribute_falls_back_to_hardcoded_string():
+    """When prompt columns are absent from the rule, fallback to hardcoded string."""
+    class StudentLow:
+        Past10DaysLogon = 2  # below TriggerLow=4
+
+    result = TriggerEvaluator().evaluate(FakeRuleNoPrompts(), StudentLow(), event_id="M4")
+
+    assert result["trigger_level"] == "Low"
+    assert result["message_text"] == "Trigger InClass level Low"
+
+
+def test_null_prompt_falls_back_to_hardcoded_string():
+    """When prompt columns are None, fallback to hardcoded string."""
+    class StudentLow:
+        Past10DaysLogon = 2  # below TriggerLow=4
+
+    result = TriggerEvaluator().evaluate(FakeRuleNullPrompts(), StudentLow(), event_id="M5")
+
+    assert result["trigger_level"] == "Low"
+    assert result["message_text"] == "Trigger InClass level Low"
+
+
+def test_unknown_trigger_level_uses_fallback_string():
+    """When trigger_level is Unknown, message_text is always the hardcoded fallback."""
+    class StudentNoKPI:
+        pass  # Past10DaysLogon not defined — produces Unknown
+
+    result = TriggerEvaluator().evaluate(FakeRuleWithPrompts(), StudentNoKPI(), event_id="M6")
+
+    assert result["trigger_level"] == "Unknown"
+    assert result["message_text"] == "Trigger InClass level Unknown"
+
+
+def test_none_trigger_level_uses_fallback_string():
+    """When trigger_level is None (within range), message_text is the hardcoded fallback."""
+    class StudentInRange:
+        Past10DaysLogon = 6  # within [4, 8]
+
+    result = TriggerEvaluator().evaluate(FakeRuleWithPrompts(), StudentInRange(), event_id="M7")
+
+    assert result["trigger_level"] == "None"
+    assert result["message_text"] == "Trigger InClass level None"
+
+
+def test_existing_result_keys_unchanged_after_message_text_added():
+    """Adding message_text must not remove or rename any existing result keys."""
+    class StudentLow:
+        Past10DaysLogon = 2
+
+    result = TriggerEvaluator().evaluate(FakeRuleWithPrompts(), StudentLow(), event_id="M8")
+
+    assert "event_id"        in result
+    assert "trigger_level"   in result
+    assert "actions_planned" in result
+    assert "notes"           in result
+    assert "message_text"    in result

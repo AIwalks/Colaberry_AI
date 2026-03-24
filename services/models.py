@@ -25,7 +25,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from config.database import Base  # shared Base — do not redefine here
@@ -263,4 +263,48 @@ class EngagementEvent(Base):
             f"event_type={self.event_type!r} "
             f"user_id={self.user_id} "
             f"channel={self.channel!r}>"
+        )
+
+
+# ---------------------------------------------------------------------------
+# 7. DeliveryLog
+# ---------------------------------------------------------------------------
+
+class DeliveryLog(Base):
+    """Maps to AI_ChatBot_DeliveryLog (write-only, append-only).
+
+    One row per delivery attempt made by OutboundDeliveryService.
+    Records whether the send succeeded or failed, which channel was used,
+    and the error message if applicable.
+
+    Fields
+    ------
+    id            — autoincrement PK, never set manually.
+    cbm_id        — reference to AI_ChatBot_TriggeredUsers.CBM_ID; indexed
+                    for fast lookup by trigger event. No FK constraint.
+    user_id       — denormalized copy from TriggeredUser; avoids a join on reads.
+    channel       — delivery channel used: "sms", "whatsapp", "email".
+    success       — True if delivery was accepted; False on error.
+    error_message — exception message on failure; None on success.
+    created_on    — UTC timestamp set at write time; never updated.
+
+    This table is additive only — rows are never modified or deleted.
+    """
+
+    __tablename__ = "AI_ChatBot_DeliveryLog"
+
+    id:            Mapped[int]            = mapped_column(Integer,     primary_key=True, autoincrement=True)
+    cbm_id:        Mapped[Optional[int]]  = mapped_column(Integer,     nullable=True,    index=True)
+    user_id:       Mapped[Optional[int]]  = mapped_column(Integer,     nullable=True)
+    channel:       Mapped[Optional[str]]  = mapped_column(String(50),  nullable=True)
+    success:       Mapped[Optional[bool]] = mapped_column(Boolean,     nullable=True)
+    error_message: Mapped[Optional[str]]  = mapped_column(Text,        nullable=True)
+    created_on:    Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, default=datetime.utcnow)
+
+    def __repr__(self) -> str:
+        return (
+            f"<DeliveryLog id={self.id} "
+            f"cbm_id={self.cbm_id} "
+            f"channel={self.channel!r} "
+            f"success={self.success}>"
         )
