@@ -308,3 +308,32 @@ class DeliveryLog(Base):
             f"channel={self.channel!r} "
             f"success={self.success}>"
         )
+
+
+# ---------------------------------------------------------------------------
+# 8. Directive
+# ---------------------------------------------------------------------------
+
+class Directive(Base):
+    """
+    Maps to AI_ChatBot_Directives (read + write).
+
+    Stores versioned directive definitions managed via CRUD API.
+    One row per directive; name is unique.
+    """
+
+    __tablename__ = "AI_ChatBot_Directives"
+
+    id:         Mapped[int]           = mapped_column(Integer,      primary_key=True, autoincrement=True)
+    name:       Mapped[str]           = mapped_column(String(100),  nullable=False,   unique=True)
+    content:    Mapped[Optional[str]] = mapped_column(Text,         nullable=True)
+    version:    Mapped[Optional[int]] = mapped_column(Integer,      nullable=True,    default=1)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    def __repr__(self) -> str:
+        return (
+            f"<Directive id={self.id} "
+            f"name={self.name!r} "
+            f"version={self.version}>"
+        )

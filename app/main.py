@@ -19,6 +19,7 @@ from services.mentor_message_service import MentorMessageService
 from services.student_status_fetcher import DbStudentStatusFetcher, StudentStatusFetcher, StubStudentStatusFetcher
 from services.trigger_processing_service import DbTriggerProcessingService, TriggerProcessingService
 from pydantic import BaseModel, field_validator
+from api.routes.directives import router as directives_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -36,6 +37,9 @@ async def request_id_middleware(request: Request, call_next):
     response = await call_next(request)
     clear_request_id()
     return response
+
+
+app.include_router(directives_router)
 
 
 # ---------------------------------------------------------------------------
