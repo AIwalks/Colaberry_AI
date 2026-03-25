@@ -20,6 +20,9 @@ from services.student_status_fetcher import DbStudentStatusFetcher, StudentStatu
 from services.trigger_processing_service import DbTriggerProcessingService, TriggerProcessingService
 from pydantic import BaseModel, field_validator
 from api.routes.directives import router as directives_router
+from api.routes.fingerprint import router as fingerprint_router
+from api.routes.kpi import router as kpi_router
+from api.routes.insight import router as insight_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -40,6 +43,9 @@ async def request_id_middleware(request: Request, call_next):
 
 
 app.include_router(directives_router)
+app.include_router(fingerprint_router)
+app.include_router(kpi_router)
+app.include_router(insight_router)
 
 
 # ---------------------------------------------------------------------------

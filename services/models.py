@@ -25,7 +25,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, func, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from config.database import Base  # shared Base — do not redefine here
@@ -336,4 +336,83 @@ class Directive(Base):
             f"<Directive id={self.id} "
             f"name={self.name!r} "
             f"version={self.version}>"
+        )
+
+
+# ---------------------------------------------------------------------------
+# 9. BehaviorFingerprint
+# ---------------------------------------------------------------------------
+
+class BehaviorFingerprint(Base):
+    __tablename__ = "AI_ChatBot_BehaviorFingerprints"
+
+    id            = Column(Integer,      primary_key=True, index=True)
+    entity_type   = Column(String(50),   nullable=False)
+    entity_id     = Column(String(100),  nullable=False)
+    pattern_name  = Column(String(100),  nullable=False)
+    score         = Column(Float,        nullable=False)
+    risk_level    = Column(String(20),   nullable=False)
+    details_json  = Column(Text,         nullable=True)
+    created_at    = Column(DateTime,     server_default=func.now())
+
+    def __repr__(self) -> str:
+        return (
+            f"<BehaviorFingerprint id={self.id} "
+            f"entity_type={self.entity_type!r} "
+            f"entity_id={self.entity_id!r} "
+            f"pattern_name={self.pattern_name!r} "
+            f"risk_level={self.risk_level!r}>"
+        )
+
+
+# ---------------------------------------------------------------------------
+# 10. DiscoveredKPI
+# ---------------------------------------------------------------------------
+
+class DiscoveredKPI(Base):
+    __tablename__ = "AI_ChatBot_DiscoveredKPIs"
+
+    id             = Column(Integer,      primary_key=True, autoincrement=True)
+    kpi_name       = Column(String(100),  nullable=False)
+    source_pattern = Column(String(100),  nullable=False)
+    entity_type    = Column(String(50),   nullable=False)
+    formula        = Column(Text,         nullable=True)
+    confidence     = Column(Float,        nullable=False)
+    sample_size    = Column(Integer,      nullable=False)
+    discovered_at  = Column(DateTime,     server_default=func.now())
+
+    def __repr__(self) -> str:
+        return (
+            f"<DiscoveredKPI id={self.id} "
+            f"kpi_name={self.kpi_name!r} "
+            f"entity_type={self.entity_type!r} "
+            f"confidence={self.confidence}>"
+        )
+
+
+# ---------------------------------------------------------------------------
+# 11. GeneratedInsight
+# ---------------------------------------------------------------------------
+
+class GeneratedInsight(Base):
+    __tablename__ = "AI_ChatBot_GeneratedInsights"
+
+    id                   = Column(Integer,      primary_key=True, index=True)
+    title                = Column(String(200),  nullable=False)
+    body                 = Column(Text,         nullable=False)
+    insight_type         = Column(String(50),   nullable=False)
+    entity_type          = Column(String(50),   nullable=False)
+    entity_id            = Column(String(100),  nullable=False)
+    source_kpis_json     = Column(Text,         nullable=True)
+    source_patterns_json = Column(Text,         nullable=True)
+    confidence           = Column(Float,        nullable=False)
+    created_at           = Column(DateTime,     server_default=func.now())
+
+    def __repr__(self) -> str:
+        return (
+            f"<GeneratedInsight id={self.id} "
+            f"title={self.title!r} "
+            f"insight_type={self.insight_type!r} "
+            f"entity_type={self.entity_type!r} "
+            f"confidence={self.confidence}>"
         )
