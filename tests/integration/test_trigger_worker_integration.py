@@ -1,7 +1,13 @@
+import os
+
 import pytest
-from config.database import SessionLocal
+from config.database import MSSQL_CONFIGURED, SessionLocal
 from services.worker.trigger_worker import process_pending_triggers
 from services.models import TriggeredUser, EngagementEvent
+
+pytestmark = pytest.mark.skipif(
+    not MSSQL_CONFIGURED, reason="MSSQL_DATABASE_URL not set"
+)
 
 
 @pytest.fixture

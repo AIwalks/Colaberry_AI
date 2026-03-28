@@ -3,12 +3,14 @@
 Connection URL is loaded exclusively from the environment variable
 MSSQL_DATABASE_URL (never hardcoded).
 
-Example DSN:
-    mssql+pyodbc://user:pass@server/dbname?driver=ODBC+Driver+17+for+SQL+Server
+Example DSN (set via environment variable, never hardcoded):
+    mssql+pyodbc://<user>:<password>@<server>/<dbname>?driver=ODBC+Driver+17+for+SQL+Server
 
-engine and SessionLocal are None when the env var is absent so that this
-module can be safely imported during tests and Alembic metadata introspection
-without a live database.
+When MSSQL_DATABASE_URL is not set, the module falls back to a local SQLite
+database (local.db) so that engine and SessionLocal are always initialised.
+
+Use MSSQL_CONFIGURED to distinguish "real DB" from "SQLite fallback" when
+deciding whether to use DB-backed vs stub services.
 """
 
 import os
@@ -16,23 +18,21 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-DATABASE_URL: str | None = os.environ.get("MSSQL_DATABASE_URL")
+MSSQL_CONFIGURED: bool = bool(os.environ.get("MSSQL_DATABASE_URL"))
+DATABASE_URL: str = os.environ.get("MSSQL_DATABASE_URL") or "sqlite:///./local.db"
 
-if DATABASE_URL:
-    engine = create_engine(
-        DATABASE_URL,
-        pool_pre_ping=True,
-        future=True,
-    )
-    SessionLocal = sessionmaker(
-        bind=engine,
-        autocommit=False,
-        autoflush=False,
-        future=True,
-    )
-else:
-    engine = None  # type: ignore[assignment]
-    SessionLocal = None  # type: ignore[assignment]
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    future=True,
+)
+
+SessionLocal = sessionmaker(
+    bind=engine,
+    autocommit=False,
+    autoflush=False,
+    future=True,
+)
 
 Base = declarative_base()
 

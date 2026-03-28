@@ -13,7 +13,7 @@ from fastapi import Depends, FastAPI, Header, Request
 
 from config.request_context import clear_request_id, set_request_id
 
-from config.database import SessionLocal
+from config.database import MSSQL_CONFIGURED, SessionLocal
 from config.logging import configure_logging
 from services.mentor_message_service import MentorMessageService
 from services.student_status_fetcher import DbStudentStatusFetcher, StudentStatusFetcher, StubStudentStatusFetcher
@@ -145,7 +145,7 @@ class MentorMessageResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 def get_student_status_fetcher() -> StudentStatusFetcher:
-    if SessionLocal is not None:
+    if MSSQL_CONFIGURED:
         return DbStudentStatusFetcher()
     return StubStudentStatusFetcher()
 
@@ -167,7 +167,7 @@ def post_mentor_message(
 
 
 def get_trigger_processing_service():
-    if SessionLocal is not None:
+    if MSSQL_CONFIGURED:
         return DbTriggerProcessingService()
     return TriggerProcessingService()
 
