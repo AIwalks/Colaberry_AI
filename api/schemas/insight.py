@@ -2,6 +2,11 @@ from pydantic import BaseModel
 from typing import List
 
 
+class InsightGenerateRequest(BaseModel):
+    entity_id: str
+    entity_type: str
+
+
 class InsightResponse(BaseModel):
     id: int
     title: str

@@ -10,6 +10,7 @@ from enum import Enum
 from typing import Any, Dict, Optional
 
 from fastapi import Depends, FastAPI, Header, Request
+from fastapi.middleware.cors import CORSMiddleware
 
 from config.request_context import clear_request_id, set_request_id
 
@@ -31,6 +32,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Colaberry AI", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.middleware("http")

@@ -16,9 +16,17 @@ class InsightService:
     def load_kpis(
         self,
         db: Session,
+        entity_id: str,
+        entity_type: str,
     ) -> List[Dict[str, Any]]:
 
-        rows = db.query(DiscoveredKPI).all()
+        rows = (
+            db.query(DiscoveredKPI)
+            .filter(
+                DiscoveredKPI.entity_type == entity_type,
+            )
+            .all()
+        )
 
         result: List[Dict[str, Any]] = []
 
@@ -39,9 +47,18 @@ class InsightService:
     def load_fingerprints(
         self,
         db: Session,
+        entity_id: str,
+        entity_type: str,
     ) -> List[Dict[str, Any]]:
 
-        rows = db.query(BehaviorFingerprint).all()
+        rows = (
+            db.query(BehaviorFingerprint)
+            .filter(
+                BehaviorFingerprint.entity_id == entity_id,
+                BehaviorFingerprint.entity_type == entity_type,
+            )
+            .all()
+        )
 
         result: List[Dict[str, Any]] = []
 
@@ -82,11 +99,13 @@ class InsightService:
     def generate_insights(
         self,
         db: Session,
+        entity_id: str,
+        entity_type: str,
     ) -> InsightGenerationResult:
 
-        kpis = self.load_kpis(db)
+        kpis = self.load_kpis(db, entity_id=entity_id, entity_type=entity_type)
 
-        fingerprints = self.load_fingerprints(db)
+        fingerprints = self.load_fingerprints(db, entity_id=entity_id, entity_type=entity_type)
 
         generator = InsightGenerator()
 
