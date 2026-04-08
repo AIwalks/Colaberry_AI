@@ -12,6 +12,8 @@ class Insight:
     source_kpis: Dict[str, float]
     source_patterns: Dict[str, float]
     confidence: float
+    explanation: str = ""
+    recommended_action: str = ""
 
 
 @dataclass

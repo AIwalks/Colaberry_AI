@@ -24,6 +24,7 @@ from api.routes.directives import router as directives_router
 from api.routes.fingerprint import router as fingerprint_router
 from api.routes.kpi import router as kpi_router
 from api.routes.insight import router as insight_router
+from config.auth import require_api_key
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -51,10 +52,10 @@ async def request_id_middleware(request: Request, call_next):
     return response
 
 
-app.include_router(directives_router)
-app.include_router(fingerprint_router)
-app.include_router(kpi_router)
-app.include_router(insight_router)
+app.include_router(directives_router, dependencies=[Depends(require_api_key)])
+app.include_router(fingerprint_router, dependencies=[Depends(require_api_key)])
+app.include_router(kpi_router,         dependencies=[Depends(require_api_key)])
+app.include_router(insight_router,     dependencies=[Depends(require_api_key)])
 
 
 # ---------------------------------------------------------------------------
@@ -159,7 +160,7 @@ def get_student_status_fetcher() -> StudentStatusFetcher:
     return StubStudentStatusFetcher()
 
 
-@app.post("/ai/mentor/message", response_model=MentorMessageResponse)
+@app.post("/ai/mentor/message", response_model=MentorMessageResponse, dependencies=[Depends(require_api_key)])
 def post_mentor_message(
     body: MentorMessageRequest,
     x_request_id: Optional[str] = Header(None),
@@ -176,12 +177,12 @@ def post_mentor_message(
 
 
 def get_trigger_processing_service():
-    if MSSQL_CONFIGURED:
+    if SessionLocal is not None:
         return DbTriggerProcessingService()
     return TriggerProcessingService()
 
 
-@app.post("/ai/trigger/process", response_model=TriggerProcessResponse)
+@app.post("/ai/trigger/process", response_model=TriggerProcessResponse, dependencies=[Depends(require_api_key)])
 def post_trigger_process(
     body: TriggerProcessRequest,
     svc=Depends(get_trigger_processing_service),

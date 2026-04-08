@@ -1,7 +1,7 @@
 """Orchestrates mentor message flows — inbound acknowledgement and outbound trigger dispatch."""
 
 from datetime import datetime
-from config.database import SessionLocal
+from config.database import SessionLocal, MSSQL_CONFIGURED
 from services.audit_log_service import AuditLogService
 from services.engagement_tracker_service import EngagementTrackerService
 from services.outbound_delivery_service import OutboundDeliveryService
@@ -80,7 +80,7 @@ class MentorMessageService:
         {"sent": False, "reason": "not_found"}  — no row for that CBM_ID
         {"sent": False, "reason": "no_db"}      — SessionLocal not configured
         """
-        if SessionLocal is None:
+        if not MSSQL_CONFIGURED:
             return {"sent": False, "reason": "no_db"}
 
         with SessionLocal() as session:

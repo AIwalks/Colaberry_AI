@@ -10,7 +10,7 @@ Or import and call from a scheduler or management script:
 
 from sqlalchemy import select
 
-from config.database import SessionLocal
+from config.database import SessionLocal, MSSQL_CONFIGURED
 from services.mentor_message_service import MentorMessageService
 from services.models import TriggeredUser
 
@@ -27,7 +27,7 @@ def process_pending_triggers() -> int:
     int — number of rows handed to process_trigger() in this run.
           Returns 0 immediately if SessionLocal is not configured.
     """
-    if SessionLocal is None:
+    if not MSSQL_CONFIGURED:
         return 0
 
     # Load all pending CBM_IDs before closing the session.
@@ -40,7 +40,11 @@ def process_pending_triggers() -> int:
 
     count = 0
     for cbm_id in cbm_ids:
-        MentorMessageService().process_trigger(cbm_id)
+        try:
+            MentorMessageService().process_trigger(cbm_id)
+        except Exception as e:
+            print(f"[ERROR] Failed processing trigger {cbm_id}: {e}")
+            continue
         count += 1
 
     return count

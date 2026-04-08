@@ -25,6 +25,8 @@ client = TestClient(app)
 # Helpers
 # ---------------------------------------------------------------------------
 
+VALID_BODY = {"entity_id": "s1", "entity_type": "student"}
+
 EXPECTED_RESPONSE_KEYS = {
     "generated_count",
     "analyzed_kpis",
@@ -82,7 +84,7 @@ def test_valid_request_returns_200():
         "api.routes.insight.InsightService.generate_insights",
         return_value=make_service_result([make_insight_dict()]),
     ):
-        resp = client.post("/insight/generate")
+        resp = client.post("/insight/generate", json=VALID_BODY)
     assert resp.status_code == 200
 
 
@@ -91,7 +93,7 @@ def test_valid_request_returns_json():
         "api.routes.insight.InsightService.generate_insights",
         return_value=make_service_result([make_insight_dict()]),
     ):
-        resp = client.post("/insight/generate")
+        resp = client.post("/insight/generate", json=VALID_BODY)
     assert "application/json" in resp.headers["content-type"]
 
 
@@ -104,7 +106,7 @@ def test_response_contains_all_top_level_keys():
         "api.routes.insight.InsightService.generate_insights",
         return_value=make_service_result([make_insight_dict()]),
     ):
-        resp = client.post("/insight/generate")
+        resp = client.post("/insight/generate", json=VALID_BODY)
     assert set(resp.json().keys()) == EXPECTED_RESPONSE_KEYS
 
 
@@ -113,7 +115,7 @@ def test_generated_count_is_integer():
         "api.routes.insight.InsightService.generate_insights",
         return_value=make_service_result([make_insight_dict()]),
     ):
-        resp = client.post("/insight/generate")
+        resp = client.post("/insight/generate", json=VALID_BODY)
     assert isinstance(resp.json()["generated_count"], int)
 
 
@@ -122,7 +124,7 @@ def test_analyzed_kpis_is_integer():
         "api.routes.insight.InsightService.generate_insights",
         return_value=make_service_result([], analyzed_kpis=3),
     ):
-        resp = client.post("/insight/generate")
+        resp = client.post("/insight/generate", json=VALID_BODY)
     assert isinstance(resp.json()["analyzed_kpis"], int)
 
 
@@ -131,7 +133,7 @@ def test_analyzed_fingerprints_is_integer():
         "api.routes.insight.InsightService.generate_insights",
         return_value=make_service_result([], analyzed_fingerprints=5),
     ):
-        resp = client.post("/insight/generate")
+        resp = client.post("/insight/generate", json=VALID_BODY)
     assert isinstance(resp.json()["analyzed_fingerprints"], int)
 
 
@@ -140,7 +142,7 @@ def test_insights_is_a_list():
         "api.routes.insight.InsightService.generate_insights",
         return_value=make_service_result([make_insight_dict()]),
     ):
-        resp = client.post("/insight/generate")
+        resp = client.post("/insight/generate", json=VALID_BODY)
     assert isinstance(resp.json()["insights"], list)
 
 
@@ -153,7 +155,7 @@ def test_single_insight_appears_in_response():
         "api.routes.insight.InsightService.generate_insights",
         return_value=make_service_result([make_insight_dict()]),
     ):
-        resp = client.post("/insight/generate")
+        resp = client.post("/insight/generate", json=VALID_BODY)
     assert len(resp.json()["insights"]) == 1
 
 
@@ -162,7 +164,7 @@ def test_insight_contains_all_expected_keys():
         "api.routes.insight.InsightService.generate_insights",
         return_value=make_service_result([make_insight_dict()]),
     ):
-        resp = client.post("/insight/generate")
+        resp = client.post("/insight/generate", json=VALID_BODY)
     insight = resp.json()["insights"][0]
     assert set(insight.keys()) == EXPECTED_INSIGHT_KEYS
 
@@ -172,7 +174,7 @@ def test_insight_id_is_integer():
         "api.routes.insight.InsightService.generate_insights",
         return_value=make_service_result([make_insight_dict(id=1)]),
     ):
-        resp = client.post("/insight/generate")
+        resp = client.post("/insight/generate", json=VALID_BODY)
     assert isinstance(resp.json()["insights"][0]["id"], int)
 
 
@@ -182,7 +184,7 @@ def test_insight_entity_id_is_string():
         "api.routes.insight.InsightService.generate_insights",
         return_value=make_service_result([make_insight_dict(entity_id="42")]),
     ):
-        resp = client.post("/insight/generate")
+        resp = client.post("/insight/generate", json=VALID_BODY)
     assert isinstance(resp.json()["insights"][0]["entity_id"], str)
 
 
@@ -191,7 +193,7 @@ def test_insight_confidence_is_float():
         "api.routes.insight.InsightService.generate_insights",
         return_value=make_service_result([make_insight_dict(confidence=0.8)]),
     ):
-        resp = client.post("/insight/generate")
+        resp = client.post("/insight/generate", json=VALID_BODY)
     assert isinstance(resp.json()["insights"][0]["confidence"], float)
 
 
@@ -201,7 +203,7 @@ def test_insight_type_is_kpi_or_risk():
             "api.routes.insight.InsightService.generate_insights",
             return_value=make_service_result([make_insight_dict(insight_type=insight_type)]),
         ):
-            resp = client.post("/insight/generate")
+            resp = client.post("/insight/generate", json=VALID_BODY)
         assert resp.json()["insights"][0]["insight_type"] == insight_type
 
 
@@ -211,7 +213,7 @@ def test_generated_count_matches_insights_list_length():
         "api.routes.insight.InsightService.generate_insights",
         return_value=make_service_result(insights),
     ):
-        resp = client.post("/insight/generate")
+        resp = client.post("/insight/generate", json=VALID_BODY)
     data = resp.json()
     assert data["generated_count"] == len(data["insights"])
 
@@ -225,7 +227,7 @@ def test_empty_result_returns_200():
         "api.routes.insight.InsightService.generate_insights",
         return_value=make_service_result([]),
     ):
-        resp = client.post("/insight/generate")
+        resp = client.post("/insight/generate", json=VALID_BODY)
     assert resp.status_code == 200
 
 
@@ -234,7 +236,7 @@ def test_empty_result_generated_count_is_zero():
         "api.routes.insight.InsightService.generate_insights",
         return_value=make_service_result([]),
     ):
-        resp = client.post("/insight/generate")
+        resp = client.post("/insight/generate", json=VALID_BODY)
     assert resp.json()["generated_count"] == 0
 
 
@@ -243,7 +245,7 @@ def test_empty_result_insights_is_empty_list():
         "api.routes.insight.InsightService.generate_insights",
         return_value=make_service_result([]),
     ):
-        resp = client.post("/insight/generate")
+        resp = client.post("/insight/generate", json=VALID_BODY)
     assert resp.json()["insights"] == []
 
 
@@ -252,7 +254,7 @@ def test_empty_result_analyzed_counts_are_present():
         "api.routes.insight.InsightService.generate_insights",
         return_value=make_service_result([], analyzed_kpis=2, analyzed_fingerprints=3),
     ):
-        resp = client.post("/insight/generate")
+        resp = client.post("/insight/generate", json=VALID_BODY)
     data = resp.json()
     assert data["analyzed_kpis"] == 2
     assert data["analyzed_fingerprints"] == 3
@@ -271,7 +273,7 @@ def test_multiple_insights_all_present_in_response():
         "api.routes.insight.InsightService.generate_insights",
         return_value=make_service_result(insights),
     ):
-        resp = client.post("/insight/generate")
+        resp = client.post("/insight/generate", json=VALID_BODY)
     data = resp.json()
     assert data["generated_count"] == 2
     assert len(data["insights"]) == 2
@@ -283,7 +285,7 @@ def test_multiple_insights_each_has_all_expected_keys():
         "api.routes.insight.InsightService.generate_insights",
         return_value=make_service_result(insights),
     ):
-        resp = client.post("/insight/generate")
+        resp = client.post("/insight/generate", json=VALID_BODY)
     for insight in resp.json()["insights"]:
         assert set(insight.keys()) == EXPECTED_INSIGHT_KEYS
 
@@ -292,21 +294,17 @@ def test_multiple_insights_each_has_all_expected_keys():
 # Route accepts no request body — no 422 on empty POST
 # ---------------------------------------------------------------------------
 
-def test_post_with_no_body_is_accepted():
-    """Route takes no request body — posting nothing must not return 422."""
+def test_post_with_no_body_returns_422():
+    """Route requires entity_id and entity_type — missing body must return 422."""
+    resp = client.post("/insight/generate")
+    assert resp.status_code == 422
+
+
+def test_post_with_extra_fields_still_returns_200():
+    """Extra body fields are ignored by Pydantic — required fields present must succeed."""
     with patch(
         "api.routes.insight.InsightService.generate_insights",
         return_value=make_service_result([]),
     ):
-        resp = client.post("/insight/generate")
-    assert resp.status_code == 200
-
-
-def test_post_with_unexpected_body_still_returns_200():
-    """Route ignores any body — extra fields must not cause an error."""
-    with patch(
-        "api.routes.insight.InsightService.generate_insights",
-        return_value=make_service_result([]),
-    ):
-        resp = client.post("/insight/generate", json={"unexpected": "data"})
+        resp = client.post("/insight/generate", json={**VALID_BODY, "unexpected": "data"})
     assert resp.status_code == 200

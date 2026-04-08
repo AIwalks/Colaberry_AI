@@ -15,6 +15,8 @@ class InsightResponse(BaseModel):
     entity_type: str
     entity_id: str
     confidence: float
+    explanation: str = ""
+    recommended_action: str = ""
 
 
 class InsightGenerateResponse(BaseModel):

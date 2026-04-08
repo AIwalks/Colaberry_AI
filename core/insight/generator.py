@@ -1,14 +1,28 @@
 from typing import List, Dict, Any
 
 from core.insight.models import Insight, InsightGenerationResult
+from skills.insight_explainer import generate_explanation
 
 
 class InsightGenerator:
+
+    def _enrich_with_explanation(self, insight: Insight) -> Insight:
+        """Pass the insight through the explainer skill and attach the result."""
+        result = generate_explanation({
+            "title": insight.title,
+            "confidence": insight.confidence,
+            "entity_type": insight.entity_type,
+        })
+        insight.explanation = result["explanation"]
+        insight.recommended_action = result["recommended_action"]
+        return insight
 
     def generate_insights(
         self,
         kpis: List[Dict[str, Any]],
         fingerprints: List[Dict[str, Any]],
+        entity_id: str,
+        entity_type: str,
     ) -> InsightGenerationResult:
 
         insights: List[Insight] = []
@@ -16,7 +30,7 @@ class InsightGenerator:
         for kpi in kpis:
             if kpi.get("confidence", 0.0) > 0.7:
                 insights.append(
-                    Insight(
+                    self._enrich_with_explanation(Insight(
                         title=f"High-confidence KPI: {kpi.get('kpi_name', 'unknown')}",
                         body=(
                             f"KPI '{kpi.get('kpi_name')}' has confidence "
@@ -24,18 +38,18 @@ class InsightGenerator:
                             f"'{kpi.get('entity_type')}'."
                         ),
                         insight_type="kpi",
-                        entity_type=kpi.get("entity_type", ""),
-                        entity_id=kpi.get("entity_id", 0),
+                        entity_type=entity_type,
+                        entity_id=entity_id,
                         source_kpis={kpi.get("kpi_name", ""): kpi.get("confidence", 0.0)},
                         source_patterns={},
                         confidence=kpi.get("confidence", 0.0),
-                    )
+                    ))
                 )
 
         for fp in fingerprints:
             if fp.get("risk_level") == "high":
                 insights.append(
-                    Insight(
+                    self._enrich_with_explanation(Insight(
                         title=f"High-risk pattern: {fp.get('pattern_name', 'unknown')}",
                         body=(
                             f"Entity '{fp.get('entity_id')}' of type "
@@ -48,7 +62,7 @@ class InsightGenerator:
                         source_kpis={},
                         source_patterns={fp.get("pattern_name", ""): fp.get("score", 0.0)},
                         confidence=fp.get("score", 0.0),
-                    )
+                    ))
                 )
 
         return InsightGenerationResult(

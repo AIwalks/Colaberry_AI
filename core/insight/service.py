@@ -84,12 +84,25 @@ class InsightService:
         from services.models import GeneratedInsight
 
         for insight in insights:
+            exists = (
+                db.query(GeneratedInsight.id)
+                .filter(
+                    GeneratedInsight.insight_type == insight.insight_type,
+                    GeneratedInsight.entity_type  == insight.entity_type,
+                    GeneratedInsight.entity_id    == str(insight.entity_id),
+                    GeneratedInsight.title        == insight.title,
+                )
+                .first()
+            )
+            if exists:
+                continue
+
             row = GeneratedInsight(
                 title=insight.title,
                 body=insight.body,
                 insight_type=insight.insight_type,
                 entity_type=insight.entity_type,
-                entity_id=insight.entity_id,
+                entity_id=str(insight.entity_id),
                 confidence=insight.confidence,
             )
             db.add(row)
@@ -112,6 +125,8 @@ class InsightService:
         result = generator.generate_insights(
             kpis,
             fingerprints,
+            entity_id=entity_id,
+            entity_type=entity_type,
         )
 
         self.save_insights(
@@ -130,6 +145,8 @@ class InsightService:
                 "entity_type": ins.entity_type,
                 "entity_id": str(ins.entity_id),
                 "confidence": ins.confidence,
+                "explanation": ins.explanation,
+                "recommended_action": ins.recommended_action,
             })
 
         return {

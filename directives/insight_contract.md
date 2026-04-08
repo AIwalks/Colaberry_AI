@@ -4,7 +4,7 @@
 
 The Insight Generation system synthesizes data from two upstream systems — KPI Discovery and Behavior Fingerprints — and produces human-readable insights and recommendations. It is the first layer of executive intelligence in the Colaberry AI platform.
 
-Each call reads all discovered KPIs and all behavior fingerprints currently in the database, applies rule-based generation logic to identify noteworthy conditions, writes each generated insight to the database, and returns the full result to the caller.
+Each call accepts an `entity_id` and `entity_type` from the caller, reads KPIs for that entity type and fingerprints for that specific entity, applies rule-based generation logic to identify noteworthy conditions, deduplicates against already-persisted insights, writes new insights to the database, and returns the full result to the caller.
 
 Two types of insights are currently generated:
 
@@ -20,20 +20,29 @@ This system is intended to grow. New insight types should be added to the genera
 - **Method:** `POST`
 - **Path:** `/insight/generate`
 - **Content-Type:** `application/json`
-- **Request body:** none required
+- **Request body:** required (see Section 3)
 
 ---
 
 ## 3. Inputs
 
-The insight system takes no external inputs from the caller. All data is read internally from the database at call time.
+### Request body (`InsightGenerateRequest`)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `entity_id` | string | yes | Identifier of the entity to generate insights for (e.g. `"student_101"`) |
+| `entity_type` | string | yes | Category of the entity (e.g. `"student"`) |
+
+Missing or malformed body returns HTTP 422.
 
 ### Internal data sources
 
-| Source table | ORM model | Fields read |
-|---|---|---|
-| `AI_ChatBot_DiscoveredKPIs` | `DiscoveredKPI` | `kpi_name`, `source_pattern`, `entity_type`, `formula`, `confidence`, `sample_size` |
-| `AI_ChatBot_BehaviorFingerprints` | `BehaviorFingerprint` | `entity_type`, `entity_id`, `pattern_name`, `score`, `risk_level` |
+| Source table | ORM model | Filter applied | Fields read |
+|---|---|---|---|
+| `AI_ChatBot_DiscoveredKPIs` | `DiscoveredKPI` | `entity_type == request.entity_type` | `kpi_name`, `source_pattern`, `entity_type`, `formula`, `confidence`, `sample_size` |
+| `AI_ChatBot_BehaviorFingerprints` | `BehaviorFingerprint` | `entity_id == request.entity_id AND entity_type == request.entity_type` | `entity_type`, `entity_id`, `pattern_name`, `score`, `risk_level` |
+
+**Entity attribution note:** `DiscoveredKPI` rows have no `entity_id` column — they are type-level. KPI insights are attributed to the caller-supplied `entity_id` and `entity_type`, not to any value from the KPI row itself. `BehaviorFingerprint` rows have an `entity_id` column and risk insights use the fingerprint's own values.
 
 ### Generation rules (enforced by `InsightGenerator`)
 
@@ -85,7 +94,7 @@ Example response:
       "body": "KPI 'avg_logins' has confidence 0.8 for entity type 'student'.",
       "insight_type": "kpi",
       "entity_type": "student",
-      "entity_id": "0",
+      "entity_id": "student_101",
       "confidence": 0.8
     }
   ]
@@ -119,7 +128,7 @@ Note: the `id` field in the API response is a sequential counter for the current
 - DB reads and writes are performed exclusively in `core/insight/service.py` (`InsightService`).
 - `core/insight/models.py` defines data structures only (`Insight`, `InsightGenerationResult`). No logic belongs there.
 - The generator must be stateless — same KPI and fingerprint input always produces the same insights.
-- Every call to `/insight/generate` appends new rows to `AI_ChatBot_GeneratedInsights`. There is no deduplication.
+- Before inserting a new insight, `save_insights` checks for an existing row with the same `insight_type + entity_type + entity_id + title`. If a match is found the row is skipped. This prevents duplicate rows across repeated calls for the same entity.
 - `entity_id` is stored as-is in the DB but cast to `str` in the API response to satisfy the schema (the `InsightResponse.entity_id` field is typed `str`).
 - `GeneratedInsight` is imported inside `save_insights()` at call time (deferred import) to allow the module to load cleanly before the ORM model is registered. This is intentional.
 - No secrets, credentials, or environment variables are read inside the insight layer.
@@ -137,15 +146,18 @@ Note: the `id` field in the API response is a sequential counter for the current
 | Fingerprint missing `pattern_name` key | Title uses `"unknown"` as fallback |
 | Fingerprint missing `entity_id` key | `entity_id` defaults to `0` |
 | DB unavailable (`MSSQL_DATABASE_URL` not set) | `SessionLocal` is `None`; `get_db` raises at request time |
-| Multiple runs | Each run appends new rows; historical rows are not deleted |
+| Multiple runs for same entity | Deduplication skips already-persisted insights; new unique insights are appended |
+| Multiple runs for different entities | Each entity produces its own rows; no cross-entity collision |
 
 ---
 
 ## 7. Verification Requirements
 
-All tests must live under `tests/unit/`.
+Tests live in three locations: `tests/unit/`, `tests/unit/` (route), and `tests/e2e/`.
 
-### Required test cases
+### Unit tests — generator (`tests/unit/test_insight_generator.py`)
+
+All calls to `InsightGenerator.generate_insights` must supply `entity_id` and `entity_type` parameters.
 
 | # | Test | Expected |
 |---|---|---|
@@ -156,15 +168,35 @@ All tests must live under `tests/unit/`.
 | 5 | Generator with both qualifying KPI and qualifying fingerprint | Two insights produced |
 | 6 | Generator with empty KPI list and empty fingerprint list | `generated_count=0`, `insights=[]` |
 | 7 | `InsightGenerationResult` counts match input lengths | `analyzed_kpis` and `analyzed_fingerprints` equal input list lengths |
-| 8 | `POST /insight/generate` happy path (mocked DB) | 200, response matches `InsightGenerateResponse` schema |
-| 9 | `POST /insight/generate` with empty DB (mocked) | 200, `generated_count=0`, `insights=[]` |
+| 8 | KPI insight `entity_id` equals the caller-supplied `entity_id`, not a value from the KPI dict | Correct entity attribution |
+
+### Unit tests — route (`tests/unit/test_insight_route.py`)
+
+| # | Test | Expected |
+|---|---|---|
+| 9 | `POST /insight/generate` with valid body (mocked service) | 200, response matches `InsightGenerateResponse` schema |
+| 10 | `POST /insight/generate` with no body | 422 |
+| 11 | `POST /insight/generate` with extra body fields | 200 (extra fields ignored) |
+
+### End-to-end tests — full chain (`tests/e2e/test_insight_flow.py`)
+
+Uses `FakeSession` / `FakeKPI` / `FakeFingerprint` — no real DB, no mocked service or generator.
+
+| # | Test | Expected |
+|---|---|---|
+| 12 | Qualifying KPI in fake DB | One `kpi` insight, correct title |
+| 13 | High-risk fingerprint in fake DB | One `risk` insight, correct title |
+| 14 | Empty fake DB | `generated_count=0`, `insights=[]` |
+| 15 | Mixed qualifying/non-qualifying KPIs | Only qualifying KPIs produce insights |
+| 16 | Multiple qualifying KPIs | Insight IDs are sequential from 1 |
 
 ### Test tooling
 
 - `InsightGenerator` tested directly — no DB, no HTTP
-- API route tests use FastAPI `TestClient` with mocked `get_db` dependency
-- No real DB connections in unit tests
-- Tests must be deterministic and runnable with `pytest tests/unit/`
+- Route tests use FastAPI `TestClient` with `MagicMock` DB and patched service
+- E2e tests use `TestClient` with `FakeSession` — real service and generator, fake DB rows
+- No real DB connections in any of these tests
+- Run with: `pytest tests/unit/ tests/e2e/test_insight_flow.py`
 
 ---
 
@@ -179,7 +211,7 @@ All tests must live under `tests/unit/`.
 | ORM model (read — KPIs) | `services/models.py` → `DiscoveredKPI` |
 | ORM model (read — fingerprints) | `services/models.py` → `BehaviorFingerprint` |
 | Alembic migration | `alembic/versions/0006_add_generated_insights_table.py` |
-| API schema | `api/schemas/insight.py` |
+| API schema (request + response) | `api/schemas/insight.py` → `InsightGenerateRequest`, `InsightGenerateResponse`, `InsightResponse` |
 | API route | `api/routes/insight.py` |
 
 ---
