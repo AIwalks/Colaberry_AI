@@ -125,13 +125,24 @@ class MentorMessageService:
             except Exception:
                 pass
 
-            OutboundDeliveryService().send_text(
-                user_id=triggered.UserID,
-                message=message_text,
-            )
-
+            # Commit before delivery — ensures Completed=1 is durable before
+            # any send attempt. If commit raises, send_text is never called and
+            # the trigger stays Completed=0 for a clean retry next poll cycle.
+            user_id = triggered.UserID
             triggered.Completed = 1
             triggered.CompletedDate = datetime.utcnow()
             session.commit()
+
+        # Send AFTER session is closed and commit is durable.
+        # If send_text fails, Completed=1 is already in the DB —
+        # the worker will not retry, preventing a duplicate send.
+        try:
+            OutboundDeliveryService().send_text(
+                user_id=user_id,
+                message=message_text,
+            )
+        except Exception as e:
+            print(f"[WARNING] Delivery failed for cbm_id={cbm_id}: {e}")
+            return {"sent": False, "reason": "delivery_failed", "cbm_id": cbm_id}
 
         return {"sent": True, "cbm_id": cbm_id}
