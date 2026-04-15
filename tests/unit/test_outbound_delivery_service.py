@@ -32,7 +32,7 @@ class TestOutboundDeliveryServiceWhatsApp:
             from services.outbound_delivery_service import OutboundDeliveryService
             result = OutboundDeliveryService().send_text(user_id=1, message="Hello")
 
-        assert result is True
+        assert isinstance(result, list)
         assert captured.get("to",     "").startswith("whatsapp:"), \
             f"Expected to= to start with 'whatsapp:', got {captured.get('to')!r}"
         assert captured.get("from_",  "").startswith("whatsapp:"), \
@@ -67,7 +67,7 @@ class TestOutboundDeliveryServiceWhatsApp:
             from services.outbound_delivery_service import OutboundDeliveryService
             result = OutboundDeliveryService().send_text(user_id=1, message="Hello")
 
-        assert result is True
+        assert isinstance(result, list)
         assert not captured.get("to",    "").startswith("whatsapp:")
         assert not captured.get("from_", "").startswith("whatsapp:")
         assert captured.get("to")    == "+15551234567"
@@ -94,7 +94,7 @@ class TestOutboundDeliveryServiceEmail:
             from services.outbound_delivery_service import OutboundDeliveryService
             result = OutboundDeliveryService().send_text(user_id=1, message="Hello email")
 
-        assert result is True
+        assert isinstance(result, list)
         mock_server.login.assert_called_once_with("sender@example.com", "secret")
         mock_server.sendmail.assert_called_once()
         args = mock_server.sendmail.call_args[0]
@@ -116,7 +116,7 @@ class TestOutboundDeliveryServiceEmail:
             from services.outbound_delivery_service import OutboundDeliveryService
             result = OutboundDeliveryService().send_text(user_id=1, message="Hello")
 
-        assert result is True
+        assert isinstance(result, list)
         mock_smtp_ssl.assert_not_called()
 
     def test_email_not_sent_when_env_vars_missing(self, monkeypatch):
@@ -134,7 +134,7 @@ class TestOutboundDeliveryServiceEmail:
             from services.outbound_delivery_service import OutboundDeliveryService
             result = OutboundDeliveryService().send_text(user_id=1, message="Hello")
 
-        assert result is True
+        assert isinstance(result, list)
         mock_smtp_ssl.assert_not_called()
 
     def test_outbound_test_email_overrides_student_email(self, monkeypatch):
@@ -161,7 +161,7 @@ class TestOutboundDeliveryServiceEmail:
         )
 
     def test_email_failure_does_not_raise(self, monkeypatch):
-        """An SMTP exception is caught; send_text() still returns True."""
+        """An SMTP exception is caught; send_text() still returns a list."""
         monkeypatch.setenv("EMAIL_HOST",          "smtp.example.com")
         monkeypatch.setenv("EMAIL_FROM",          "sender@example.com")
         monkeypatch.setenv("EMAIL_PASSWORD",      "secret")
@@ -175,7 +175,7 @@ class TestOutboundDeliveryServiceEmail:
             from services.outbound_delivery_service import OutboundDeliveryService
             result = OutboundDeliveryService().send_text(user_id=1, message="Hello")
 
-        assert result is True
+        assert isinstance(result, list)
 
     def test_sms_and_email_both_fire_when_credentials_present(self, monkeypatch):
         """Both Twilio and email blocks execute independently in the same call."""
@@ -205,6 +205,104 @@ class TestOutboundDeliveryServiceEmail:
             from services.outbound_delivery_service import OutboundDeliveryService
             result = OutboundDeliveryService().send_text(user_id=1, message="Dual send")
 
-        assert result is True
+        assert len(result) == 2
         mock_twilio_instance.messages.create.assert_called_once()
         mock_server.sendmail.assert_called_once()
+
+
+class TestDeliveryContract:
+
+    def test_send_text_returns_structured_list(self, monkeypatch):
+        """send_text() must return a list of dicts, not a bool.
+
+        Each entry must contain all 6 contract fields:
+        success, channel, provider, provider_id, error, recipient.
+        """
+        monkeypatch.delenv("OUTBOUND_USE_WHATSAPP", raising=False)
+        monkeypatch.setenv("TWILIO_ACCOUNT_SID",   "ACtest")
+        monkeypatch.setenv("TWILIO_AUTH_TOKEN",     "authtest")
+        monkeypatch.setenv("TWILIO_FROM_NUMBER",    "+15550000000")
+        monkeypatch.setenv("OUTBOUND_TEST_PHONE",   "+15559990001")
+        monkeypatch.delenv("EMAIL_HOST", raising=False)
+
+        mock_msg = MagicMock()
+        mock_msg.sid = "SMcontract01"
+        mock_client_instance = MagicMock()
+        mock_client_instance.messages.create.return_value = mock_msg
+
+        import services.outbound_delivery_service as module
+        monkeypatch.setattr(module, "SessionLocal", None)
+
+        with patch("twilio.rest.Client", return_value=mock_client_instance):
+            from services.outbound_delivery_service import OutboundDeliveryService
+            result = OutboundDeliveryService().send_text(user_id=1, message="contract test")
+
+        assert isinstance(result, list), \
+            f"send_text() must return list, got {type(result).__name__}"
+        assert len(result) == 1, \
+            f"Expected 1 result entry for SMS channel, got {len(result)}"
+
+        entry = result[0]
+        required_keys = {"success", "channel", "provider", "provider_id", "error", "recipient"}
+        missing = required_keys - entry.keys()
+        assert not missing, f"Result entry missing required keys: {missing}"
+
+        assert entry["success"]      is True
+        assert entry["channel"]      == "sms"
+        assert entry["provider"]     == "twilio"
+        assert entry["provider_id"]  == "SMcontract01"
+        assert entry["error"]        is None
+        assert entry["recipient"]    == "+15559990001"
+
+    def test_cbm_id_written_to_delivery_log(self, monkeypatch):
+        """send_text(..., cbm_id=999) must write a DeliveryLog row with cbm_id=999.
+
+        Uses local SQLite — no real email is sent (SMTP_SSL is mocked).
+        Cleans up after regardless of assertion outcome.
+        """
+        _CBM_ID = 999
+
+        monkeypatch.setenv("EMAIL_HOST",          "smtp.example.com")
+        monkeypatch.setenv("EMAIL_FROM",          "sender@example.com")
+        monkeypatch.setenv("EMAIL_PASSWORD",      "secret")
+        monkeypatch.setenv("OUTBOUND_TEST_EMAIL", "contract@example.com")
+        monkeypatch.delenv("TWILIO_ACCOUNT_SID",  raising=False)
+
+        mock_server = MagicMock()
+        mock_smtp_ssl = MagicMock(
+            return_value=__import__("contextlib").nullcontext(mock_server)
+        )
+
+        try:
+            with patch("smtplib.SMTP_SSL", mock_smtp_ssl):
+                from services.outbound_delivery_service import OutboundDeliveryService
+                result = OutboundDeliveryService().send_text(
+                    user_id=1,
+                    message="cbm_id log test",
+                    cbm_id=_CBM_ID,
+                )
+
+            assert isinstance(result, list), "send_text() must return list"
+            assert len(result) == 1
+
+            from config.database import SessionLocal
+            from services.models import DeliveryLog
+            with SessionLocal() as session:
+                row = (
+                    session.query(DeliveryLog)
+                    .filter_by(cbm_id=_CBM_ID)
+                    .order_by(DeliveryLog.id.desc())
+                    .first()
+                )
+            assert row is not None, \
+                f"No DeliveryLog row found with cbm_id={_CBM_ID}"
+            assert row.cbm_id == _CBM_ID, \
+                f"Expected cbm_id={_CBM_ID}, got {row.cbm_id}"
+            assert row.channel == "email"
+
+        finally:
+            from config.database import SessionLocal
+            from services.models import DeliveryLog
+            with SessionLocal() as session:
+                session.query(DeliveryLog).filter_by(cbm_id=_CBM_ID).delete()
+                session.commit()

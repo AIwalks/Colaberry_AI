@@ -14,8 +14,13 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from config.database import Base, engine
+from config.database import Base, engine, MSSQL_CONFIGURED
 import services.models  # noqa: F401 — registers all ORM models against Base
+
+if MSSQL_CONFIGURED:
+    print("ERROR: MSSQL_DATABASE_URL is set. This script only runs against the local SQLite database.")
+    print("Unset MSSQL_DATABASE_URL before running init_local_db.py.")
+    sys.exit(1)
 
 Base.metadata.create_all(bind=engine)
 

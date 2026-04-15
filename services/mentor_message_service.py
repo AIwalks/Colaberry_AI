@@ -137,12 +137,14 @@ class MentorMessageService:
         # If send_text fails, Completed=1 is already in the DB —
         # the worker will not retry, preventing a duplicate send.
         try:
-            OutboundDeliveryService().send_text(
+            delivery_results = OutboundDeliveryService().send_text(
                 user_id=user_id,
                 message=message_text,
+                cbm_id=cbm_id,
             )
         except Exception as e:
             print(f"[WARNING] Delivery failed for cbm_id={cbm_id}: {e}")
             return {"sent": False, "reason": "delivery_failed", "cbm_id": cbm_id}
 
-        return {"sent": True, "cbm_id": cbm_id}
+        sent = any(r.get("success") for r in delivery_results)
+        return {"sent": sent, "cbm_id": cbm_id, "delivery_results": delivery_results}
