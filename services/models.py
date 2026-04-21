@@ -143,6 +143,7 @@ class TriggeredUser(Base):
     Completed: Mapped[Optional[int]] = mapped_column(Integer)
     CompletedDate: Mapped[Optional[datetime]] = mapped_column(DateTime)
     AgentID: Mapped[Optional[int]] = mapped_column(Integer)
+    DeliverySucceeded: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
 
     def __repr__(self) -> str:
         return (
