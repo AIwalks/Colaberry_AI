@@ -144,7 +144,47 @@ class MentorMessageService:
             )
         except Exception as e:
             print(f"[WARNING] Delivery failed for cbm_id={cbm_id}: {e}")
+            try:
+                with SessionLocal() as session:
+                    row: TriggeredUser | None = session.get(TriggeredUser, cbm_id)
+                    if row is not None:
+                        row.DeliverySucceeded = False
+                        session.commit()
+            except Exception as wb_err:
+                print(f"[WARNING] Could not write DeliverySucceeded=False for cbm_id={cbm_id}: {wb_err}")
+                try:
+                    with SessionLocal() as retry_session:
+                        retry_row: TriggeredUser | None = retry_session.get(TriggeredUser, cbm_id)
+                        if retry_row is not None:
+                            retry_row.DeliverySucceeded = False
+                            retry_session.commit()
+                except Exception as retry_err:
+                    print(f"[CRITICAL] DeliverySucceeded could not be persisted for cbm_id={cbm_id}: {retry_err}")
             return {"sent": False, "reason": "delivery_failed", "cbm_id": cbm_id}
 
         sent = any(r.get("success") for r in delivery_results)
+
+        # Write delivery outcome back to the trigger record.
+        # This is a best-effort update — failure must not affect the caller's result.
+        # DeliverySucceeded=True  → at least one channel succeeded
+        # DeliverySucceeded=False → delivery was attempted but all channels failed
+        # DeliverySucceeded=None  → left only when delivery_results is empty (no attempt made)
+        delivery_succeeded: bool | None = sent if delivery_results else None
+        try:
+            with SessionLocal() as session:
+                row: TriggeredUser | None = session.get(TriggeredUser, cbm_id)
+                if row is not None:
+                    row.DeliverySucceeded = delivery_succeeded
+                    session.commit()
+        except Exception as e:
+            print(f"[WARNING] Could not write DeliverySucceeded for cbm_id={cbm_id}: {e}")
+            try:
+                with SessionLocal() as retry_session:
+                    retry_row: TriggeredUser | None = retry_session.get(TriggeredUser, cbm_id)
+                    if retry_row is not None:
+                        retry_row.DeliverySucceeded = delivery_succeeded
+                        retry_session.commit()
+            except Exception as retry_err:
+                print(f"[CRITICAL] DeliverySucceeded could not be persisted for cbm_id={cbm_id}: {retry_err}")
+
         return {"sent": sent, "cbm_id": cbm_id, "delivery_results": delivery_results}
