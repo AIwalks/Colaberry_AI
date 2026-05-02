@@ -19,7 +19,7 @@ def fake_db():
 
 app.dependency_overrides[get_db] = fake_db
 
-client = TestClient(app)
+client = TestClient(app, headers={"X-Api-Key": "test-key"})
 
 
 # ---------------------------------------------------------------------------

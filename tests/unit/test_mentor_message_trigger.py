@@ -244,3 +244,85 @@ class TestDeliverySucceededWriteback:
             )
         finally:
             _delete_triggered_user(cbm_id)
+
+
+# ---------------------------------------------------------------------------
+# Atomic claim tests
+# Verify that the OUTPUT INSERTED / RETURNING claim pattern prevents duplicate
+# sends when two workers process the same cbm_id.
+# All tests use local SQLite — no MSSQL required.
+# ---------------------------------------------------------------------------
+
+
+class TestAtomicClaim:
+    """Covers the already_claimed guard introduced by the atomic UPDATE RETURNING."""
+
+    def test_second_sequential_call_returns_already_claimed(self):
+        """After process_trigger() claims a row (Completed=1), a subsequent call
+        for the same cbm_id must return already_claimed without invoking send_text().
+
+        This simulates the steady-state outcome of two workers racing: only one
+        sees a returned row from the RETURNING clause; the other exits here.
+        """
+        cbm_id = _insert_triggered_user()
+        try:
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=[]) as mock_send:
+                from services.mentor_message_service import MentorMessageService
+                svc = MentorMessageService()
+
+                first  = svc.process_trigger(cbm_id)
+                second = svc.process_trigger(cbm_id)
+
+            assert first.get("cbm_id") == cbm_id, \
+                "First call must process and return cbm_id"
+            assert second == {"sent": False, "reason": "already_claimed"}, \
+                "Second call must return already_claimed — not attempt delivery"
+            assert mock_send.call_count == 1, \
+                "send_text must be called exactly once across both invocations"
+        finally:
+            _delete_triggered_user(cbm_id)
+
+    def test_already_claimed_does_not_raise(self):
+        """already_claimed path must return a dict cleanly with no exception."""
+        cbm_id = _insert_triggered_user()
+        try:
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=[]):
+                from services.mentor_message_service import MentorMessageService
+                svc = MentorMessageService()
+                svc.process_trigger(cbm_id)        # claim it
+                result = svc.process_trigger(cbm_id)  # must not raise
+
+            assert isinstance(result, dict)
+            assert result["sent"] is False
+            assert result["reason"] == "already_claimed"
+        finally:
+            _delete_triggered_user(cbm_id)
+
+    def test_already_claimed_leaves_completed_flag_unchanged(self):
+        """Row must remain Completed=1 after an already_claimed call — the
+        losing worker must not reset the flag or corrupt the row state.
+        """
+        from config.database import SessionLocal
+        from services.models import TriggeredUser
+
+        cbm_id = _insert_triggered_user()
+        try:
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=[]):
+                from services.mentor_message_service import MentorMessageService
+                svc = MentorMessageService()
+                svc.process_trigger(cbm_id)   # winner
+                svc.process_trigger(cbm_id)   # loser — already_claimed
+
+            with SessionLocal() as session:
+                row = session.get(TriggeredUser, cbm_id)
+                assert row is not None
+                assert row.Completed == 1, \
+                    "Completed flag must remain 1 after the already_claimed path executes"
+        finally:
+            _delete_triggered_user(cbm_id)

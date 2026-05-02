@@ -78,7 +78,7 @@ def override_db(fingerprints):
     return _fake_db
 
 
-client = TestClient(app)
+client = TestClient(app, headers={"X-Api-Key": "test-key"})
 
 
 # ---------------------------------------------------------------------------

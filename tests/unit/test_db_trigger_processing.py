@@ -3,7 +3,7 @@
 Skipped automatically when MSSQL_DATABASE_URL is not configured.
 To run against a live database:
 
-    MSSQL_DATABASE_URL="mssql+pyodbc://user:pass@server/db?driver=ODBC+Driver+17+for+SQL+Server" \
+    MSSQL_DATABASE_URL="mssql+pyodbc://user:pass@server/db?driver=ODBC+Driver+17+for+SQL+Server"  # pragma: allowlist secret \
         pytest tests/unit/test_db_trigger_processing.py -v
 
 What this test does
@@ -40,7 +40,7 @@ def test_db_trigger_process_returns_correct_shape():
     """Response always contains the four required top-level keys."""
     from app.main import app
 
-    client = TestClient(app)
+    client = TestClient(app, headers={"X-Api-Key": "test-key"})
     response = client.post("/ai/trigger/process", json=_PAYLOAD)
 
     assert response.status_code == 200
@@ -67,7 +67,7 @@ def test_db_trigger_process_writes_triggered_user_row_when_accepted():
     from config.database import SessionLocal
     from services.models import TriggeredUser
 
-    client = TestClient(app)
+    client = TestClient(app, headers={"X-Api-Key": "test-key"})
     response = client.post("/ai/trigger/process", json=_PAYLOAD)
 
     assert response.status_code == 200

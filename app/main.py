@@ -4,6 +4,7 @@ Thin HTTP layer only. No business logic, no DB, no external calls.
 See directives/ai_mentor_message_contract.md for the full specification.
 """
 
+import os
 import uuid
 from contextlib import asynccontextmanager
 from enum import Enum
@@ -29,6 +30,11 @@ from config.auth import require_api_key
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     configure_logging()
+    if not os.environ.get("API_KEY"):
+        raise RuntimeError(
+            "API_KEY environment variable is required but not set. "
+            "Set API_KEY before starting the server."
+        )
     yield
 
 

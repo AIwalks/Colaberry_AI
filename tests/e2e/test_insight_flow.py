@@ -102,7 +102,7 @@ def override_db(kpis=None, fingerprints=None):
     return _fake_db
 
 
-client = TestClient(app)
+client = TestClient(app, headers={"X-Api-Key": "test-key"})
 
 EXPECTED_TOP_KEYS = {"generated_count", "analyzed_kpis", "analyzed_fingerprints", "insights"}
 EXPECTED_INSIGHT_KEYS = {"id", "title", "body", "insight_type", "entity_type", "entity_id", "confidence"}

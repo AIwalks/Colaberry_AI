@@ -129,9 +129,17 @@ Each channel is wrapped in its own inner try/except. A failure in one channel ne
 ```
 trigger_worker.process_pending_triggers()
   → MentorMessageService.process_trigger(cbm_id)
-    → triggered.Completed = 1
-    → triggered.CompletedDate = datetime.utcnow()
-    → session.commit()          ← commit BEFORE send
+    → session.get(cbm_id)                    ← read row and evaluate message
+    → UPDATE TriggeredUser                   ← atomic claim
+        SET Completed=1, CompletedDate=now
+        OUTPUT INSERTED.CBM_ID               ← SQL Server
+        WHERE CBM_ID=? AND Completed=0       ← only first worker matches
+    → claimed_row = result.fetchone()
+    → session.commit()
+    → if claimed_row is None:
+          return {"sent": False, "reason": "already_claimed"}  ← exit, no send
+    → AuditLogService().log_event(...)       ← only after claim confirmed
+    → EngagementTrackerService().log_event(...)
     → OutboundDeliveryService().send_text(
           user_id=user_id,
           message=message_text,
@@ -139,9 +147,23 @@ trigger_worker.process_pending_triggers()
       )
 ```
 
-The trigger row is marked `Completed=1` and committed **before** `send_text()` is called. This eliminates the double-send risk: if the process restarts after commit but before send, the trigger will not be reprocessed.
+The trigger row is claimed via an atomic `UPDATE ... WHERE Completed=0` with an
+`OUTPUT INSERTED` / `RETURNING` clause. Only the worker whose `UPDATE` matches the
+`WHERE Completed=0` condition receives a row back from the database. All other
+concurrent workers receive `None` from `fetchone()` and return `already_claimed`
+before `send_text()` is reached.
 
-Delivery failures are non-blocking. `process_trigger()` wraps `send_text()` in a `try/except` and returns `{"sent": False}` on exception, but the trigger row remains permanently completed.
+This eliminates the duplicate-send race that would occur if two workers both read
+`Completed=0` before either commits. The `RETURNING` clause is used instead of
+`rowcount` to avoid the `rowcount=-1` ambiguity that arises when `SET NOCOUNT` is
+active on the SQL Server connection.
+
+Audit and engagement log writes happen **after** the claim is confirmed, ensuring
+a losing worker never writes orphaned records.
+
+Delivery failures are non-blocking. `process_trigger()` wraps `send_text()` in a
+`try/except` and returns `{"sent": False}` on exception, but the trigger row
+remains permanently completed (`Completed=1`) and is not retried.
 
 ### cbm_id threading requirement
 
@@ -264,7 +286,9 @@ This service does **not**:
 - [x] `cbm_id` parameter added to `send_text()` signature
 - [x] `cbm_id` written to every `DeliveryLog` row
 - [x] `cbm_id` forwarded from `process_trigger()` to `send_text()`
-- [x] `Completed=1` committed before `send_text()` is called
+- [x] `Completed=1` claimed via atomic `UPDATE ... WHERE Completed=0 RETURNING CBM_ID` before `send_text()` is called
+- [x] Concurrent workers that lose the atomic claim return `already_claimed` without calling `send_text()`
+- [x] `RETURNING` clause used instead of `rowcount` to eliminate `SET NOCOUNT` ambiguity
 - [x] SMS channel implemented and unit tested
 - [x] WhatsApp channel implemented and unit tested
 - [x] Email (SMTP) channel implemented and unit tested

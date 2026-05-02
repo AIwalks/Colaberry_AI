@@ -54,7 +54,7 @@ def fake_db():
         session.close()
 
 
-client = TestClient(app)
+client = TestClient(app, headers={"X-Api-Key": "test-key"})
 
 
 @pytest.fixture(autouse=True)

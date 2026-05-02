@@ -8,7 +8,7 @@ from config.database import SessionLocal
 from services.models import TriggerRule, TriggeredUser
 from services.trigger_processing_service import DbTriggerProcessingService, TriggerProcessingService
 
-client = TestClient(app)
+client = TestClient(app, headers={"X-Api-Key": "test-key"})
 
 
 def test_get_trigger_processing_service_routes_correctly_by_session():

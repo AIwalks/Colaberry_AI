@@ -1,6 +1,7 @@
 """Orchestrates mentor message flows — inbound acknowledgement and outbound trigger dispatch."""
 
 from datetime import datetime
+from sqlalchemy import update
 from config.database import SessionLocal, MSSQL_CONFIGURED
 from services.audit_log_service import AuditLogService
 from services.engagement_tracker_service import EngagementTrackerService
@@ -76,9 +77,10 @@ class MentorMessageService:
 
         Returns
         -------
-        {"sent": True,  "cbm_id": cbm_id}      — row found and processed
-        {"sent": False, "reason": "not_found"}  — no row for that CBM_ID
-        {"sent": False, "reason": "no_db"}      — SessionLocal not configured
+        {"sent": True,  "cbm_id": cbm_id}           — row claimed and processed
+        {"sent": False, "reason": "not_found"}       — no row for that CBM_ID
+        {"sent": False, "reason": "no_db"}           — SessionLocal not configured
+        {"sent": False, "reason": "already_claimed"} — another worker claimed first
         """
         if not MSSQL_CONFIGURED:
             return {"sent": False, "reason": "no_db"}
@@ -90,6 +92,7 @@ class MentorMessageService:
                 return {"sent": False, "reason": "not_found"}
 
             _fallback = f"Trigger {triggered.TriggerType} level {triggered.TriggerLevel}"
+            user_id = triggered.UserID
             try:
                 rule    = session.get(TriggerRule, triggered.CB_ID) if triggered.CB_ID is not None else None
                 student = session.get(TriggerData, triggered.UserID) if triggered.UserID is not None else None
@@ -98,7 +101,26 @@ class MentorMessageService:
             except Exception:
                 message_text = _fallback
 
-            # Non-blocking — failure must not prevent completion
+            # Atomic claim via OUTPUT INSERTED (SQL Server) / RETURNING (SQLite).
+            # fetchone() returns the claimed row only when this worker's UPDATE
+            # matched WHERE Completed=0 first; concurrent workers receive None
+            # and exit before send_text() is called. Using RETURNING eliminates
+            # the rowcount=-1 ambiguity that arises when SET NOCOUNT is active.
+            claim_result = session.execute(
+                update(TriggeredUser)
+                .where(TriggeredUser.CBM_ID == cbm_id, TriggeredUser.Completed == 0)
+                .values(Completed=1, CompletedDate=datetime.utcnow())
+                .returning(TriggeredUser.CBM_ID)
+            )
+            claimed_row = claim_result.fetchone()
+            session.commit()
+
+            if claimed_row is None:
+                return {"sent": False, "reason": "already_claimed"}
+
+            # Non-blocking — failure must not prevent completion.
+            # Audit writes happen after the claim is confirmed so a losing
+            # worker never writes orphaned audit or engagement records.
             try:
                 AuditLogService().log_event(
                     phone_number            = None,
@@ -115,7 +137,7 @@ class MentorMessageService:
 
             try:
                 EngagementTrackerService().log_event(
-                    user_id    = triggered.UserID,
+                    user_id    = user_id,
                     event_type = "trigger_dispatched",
                     channel    = None,
                     message    = message_text,
@@ -124,14 +146,6 @@ class MentorMessageService:
                 )
             except Exception:
                 pass
-
-            # Commit before delivery — ensures Completed=1 is durable before
-            # any send attempt. If commit raises, send_text is never called and
-            # the trigger stays Completed=0 for a clean retry next poll cycle.
-            user_id = triggered.UserID
-            triggered.Completed = 1
-            triggered.CompletedDate = datetime.utcnow()
-            session.commit()
 
         # Send AFTER session is closed and commit is durable.
         # If send_text fails, Completed=1 is already in the DB —

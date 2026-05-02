@@ -20,7 +20,7 @@ VALID_BODY = {
 def test_dependency_override_replaces_student_status():
     app.dependency_overrides[get_student_status_fetcher] = FakeStatusFetcher
     try:
-        client = TestClient(app)
+        client = TestClient(app, headers={"X-Api-Key": "test-key"})
         resp = client.post("/ai/mentor/message", json=VALID_BODY)
         assert resp.status_code == 200
         status = resp.json()["student_status"]
