@@ -10,6 +10,8 @@ interface Insight {
   confidence: number;
   explanation?: string;
   recommended_action?: string;
+  explainability?: string[];
+  risk_level?: string;
 }
 
 function InsightCard({ insight }: { insight: Insight }) {
@@ -94,8 +96,28 @@ function InsightCard({ insight }: { insight: Insight }) {
       {/* Divider */}
       <div style={{ borderTop: "1px solid #f3f4f6", margin: "16px 0" }} />
 
-      {/* Explanation */}
-      {insight.explanation && (
+      {/* Explainability Trace — rendered when the AI route returns the list */}
+      {Array.isArray(insight.explainability) && insight.explainability.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <div style={sectionLabel}>Explainability Trace</div>
+          <ul
+            style={{
+              margin: 0,
+              paddingLeft: 18,
+              listStyleType: "disc",
+            }}
+          >
+            {insight.explainability.map((item, i) => (
+              <li key={i} style={{ ...sectionBody, marginBottom: 4 }}>
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Explanation — shown only when the raw list is absent (template-based insights) */}
+      {insight.explanation && !(Array.isArray(insight.explainability) && insight.explainability.length > 0) && (
         <div style={{ marginBottom: 12 }}>
           <div style={sectionLabel}>Explanation</div>
           <p style={sectionBody}>{insight.explanation}</p>
@@ -108,7 +130,6 @@ function InsightCard({ insight }: { insight: Insight }) {
           style={{
             borderLeft: `3px solid ${accentColor}`,
             paddingLeft: 12,
-            marginTop: insight.explanation ? 0 : 0,
           }}
         >
           <div style={sectionLabel}>Recommended Action</div>
@@ -116,15 +137,15 @@ function InsightCard({ insight }: { insight: Insight }) {
         </div>
       )}
 
-      {/* Fallback body if skill fields absent */}
-      {!insight.explanation && !insight.recommended_action && (
+      {/* Fallback body if no enrichment fields present */}
+      {!insight.explanation && !insight.recommended_action && !(Array.isArray(insight.explainability) && insight.explainability.length > 0) && (
         <p style={{ fontSize: 13, color: "#4b5563", margin: 0, lineHeight: 1.5 }}>{insight.body}</p>
       )}
     </div>
   );
 }
 
-function ResultsPanel({ insights, filter }: { insights: Insight[]; filter: "all" | "kpi" | "risk" }) {
+function ResultsPanel({ insights, filter }: { insights: Insight[]; filter: "all" | "kpi" | "risk" | "ai" }) {
   const visible = insights
     .filter((i) => filter === "all" || i.insight_type === filter)
     .slice()
@@ -132,11 +153,13 @@ function ResultsPanel({ insights, filter }: { insights: Insight[]; filter: "all"
 
   const kpiCount  = visible.filter((i) => i.insight_type === "kpi").length;
   const riskCount = visible.filter((i) => i.insight_type === "risk").length;
+  const aiCount   = visible.filter((i) => i.insight_type === "ai").length;
 
   return (
     <>
       <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 12px 0" }}>
-        {visible.length} Insight{visible.length !== 1 ? "s" : ""} &bull; {kpiCount} KPI &bull; {riskCount} Risk
+        {visible.length} Insight{visible.length !== 1 ? "s" : ""}
+        {" "}&bull; {kpiCount} KPI &bull; {riskCount} Risk{aiCount > 0 ? ` · ${aiCount} AI` : ""}
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {visible.length === 0 ? (
@@ -151,18 +174,23 @@ function ResultsPanel({ insights, filter }: { insights: Insight[]; filter: "all"
 
 export default function App() {
   const [insights, setInsights] = useState<Insight[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<"all" | "kpi" | "risk">("all");
+  const [loadingMode, setLoadingMode] = useState<"standard" | "ai" | null>(null);
+  const [filter, setFilter] = useState<"all" | "kpi" | "risk" | "ai">("all");
   const [error, setError] = useState<string | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState("student_101");
 
-  async function generateInsights() {
-    setLoading(true);
+  const loading = loadingMode !== null;
+
+  async function generateInsights(endpoint: "/insight/generate" | "/insight/generate/ai") {
+    setLoadingMode(endpoint === "/insight/generate" ? "standard" : "ai");
     setError(null);
     try {
-      const res = await fetch("http://localhost:8000/insight/generate", {
+      const res = await fetch(`http://localhost:8000${endpoint}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Api-Key": import.meta.env.VITE_API_KEY ?? "",
+        },
         body: JSON.stringify({ entity_id: selectedStudentId, entity_type: "student" }),
       });
       if (!res.ok) {
@@ -174,7 +202,7 @@ export default function App() {
     } catch (e) {
       setError("Could not reach the server. Check that the backend is running.");
     } finally {
-      setLoading(false);
+      setLoadingMode(null);
     }
   }
 
@@ -210,45 +238,71 @@ export default function App() {
         </select>
       </div>
 
-      <button
-        onClick={generateInsights}
-        disabled={loading}
-        style={{
-          padding: "10px 24px",
-          fontSize: 15,
-          background: loading ? "#93c5fd" : "#2563eb",
-          color: "#fff",
-          border: "none",
-          borderRadius: 6,
-          cursor: loading ? "not-allowed" : "pointer",
-        }}
-      >
-        {loading ? "Generating..." : "Generate Insights"}
-      </button>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <button
+          onClick={() => generateInsights("/insight/generate")}
+          disabled={loading}
+          style={{
+            padding: "10px 20px",
+            fontSize: 14,
+            background: loadingMode === "standard" ? "#93c5fd" : "#2563eb",
+            color: "#fff",
+            border: "none",
+            borderRadius: 6,
+            cursor: loading ? "not-allowed" : "pointer",
+          }}
+        >
+          {loadingMode === "standard" ? "Generating..." : "Generate Standard Insights"}
+        </button>
+        <button
+          onClick={() => generateInsights("/insight/generate/ai")}
+          disabled={loading}
+          style={{
+            padding: "10px 20px",
+            fontSize: 14,
+            background: loadingMode === "ai" ? "#a78bfa" : "#7c3aed",
+            color: "#fff",
+            border: "none",
+            borderRadius: 6,
+            cursor: loading ? "not-allowed" : "pointer",
+          }}
+        >
+          {loadingMode === "ai" ? "Generating..." : "Generate AI Insights"}
+        </button>
+      </div>
+      <p style={{ fontSize: 12, color: "#9ca3af", margin: "8px 0 0 0" }}>
+        Standard uses deterministic KPI/risk rules. AI uses Claude-generated explainability.
+      </p>
 
-      {insights.length > 0 && (
-        <div style={{ display: "flex", gap: 8, marginTop: 24 }}>
-          {(["all", "kpi", "risk"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              style={{
-                padding: "6px 16px",
-                fontSize: 13,
-                fontWeight: 600,
-                borderRadius: 6,
-                border: "1px solid",
-                cursor: "pointer",
-                borderColor: filter === f ? "#2563eb" : "#d1d5db",
-                background: filter === f ? "#2563eb" : "#fff",
-                color: filter === f ? "#fff" : "#374151",
-              }}
-            >
-              {f === "all" ? "All" : f.toUpperCase()}
-            </button>
-          ))}
-        </div>
-      )}
+      {insights.length > 0 && (() => {
+        const hasAi = insights.some((i) => i.insight_type === "ai");
+        const tabs: Array<"all" | "kpi" | "risk" | "ai"> = hasAi
+          ? ["all", "kpi", "risk", "ai"]
+          : ["all", "kpi", "risk"];
+        return (
+          <div style={{ display: "flex", gap: 8, marginTop: 24 }}>
+            {tabs.map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                style={{
+                  padding: "6px 16px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  borderRadius: 6,
+                  border: "1px solid",
+                  cursor: "pointer",
+                  borderColor: filter === f ? "#2563eb" : "#d1d5db",
+                  background: filter === f ? "#2563eb" : "#fff",
+                  color: filter === f ? "#fff" : "#374151",
+                }}
+              >
+                {f === "all" ? "All" : f.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        );
+      })()}
 
       <div
         style={{

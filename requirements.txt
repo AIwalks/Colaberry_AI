@@ -13,5 +13,8 @@ SQLAlchemy>=2.0
 alembic
 pyodbc
 
+# AI
+anthropic>=0.25.0
+
 # Testing
 pytest>=8.0
