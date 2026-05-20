@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config.request_context import clear_request_id, set_request_id
 
-from config.database import MSSQL_CONFIGURED, SessionLocal
+from config.database import MSSQL_CONFIGURED, SENTINEL_LIVE, SENTINEL_SHADOW_MODE, SessionLocal
 from config.logging import configure_logging
 from services.mentor_message_service import MentorMessageService
 from services.student_status_fetcher import DbStudentStatusFetcher, StudentStatusFetcher, StubStudentStatusFetcher
@@ -25,7 +25,12 @@ from api.routes.directives import router as directives_router
 from api.routes.fingerprint import router as fingerprint_router
 from api.routes.kpi import router as kpi_router
 from api.routes.insight import router as insight_router
+from api.routes.sentinel import router as sentinel_router
 from config.auth import require_api_key
+
+import logging as _logging
+_startup_logger = _logging.getLogger("colaberry.startup")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -35,6 +40,39 @@ async def lifespan(app: FastAPI):
             "API_KEY environment variable is required but not set. "
             "Set API_KEY before starting the server."
         )
+
+    # Sentinel shadow-mode startup validation
+    if SENTINEL_SHADOW_MODE:
+        _startup_logger.info(
+            "SENTINEL_SHADOW_MODE=true — Sentinel live DB reads enabled: %s",
+            SENTINEL_LIVE,
+        )
+        if SENTINEL_LIVE:
+            try:
+                from services.database_connection_validator import DatabaseConnectionValidator
+                from config.database import engine as _engine
+                result = DatabaseConnectionValidator(engine=_engine).run_full_validation()
+                if result.passed:
+                    _startup_logger.info(
+                        "Sentinel DB validation passed — tables present: %s",
+                        ", ".join(result.tables_present) or "none checked",
+                    )
+                else:
+                    _startup_logger.warning(
+                        "Sentinel DB validation issues (shadow-mode continues): %s",
+                        "; ".join(result.errors),
+                    )
+            except Exception as exc:
+                _startup_logger.warning(
+                    "Sentinel DB validation raised unexpectedly — continuing in mock mode: %s", exc
+                )
+        else:
+            _startup_logger.info(
+                "Sentinel running in mock-data mode (MSSQL_CONFIGURED=%s)", MSSQL_CONFIGURED
+            )
+    else:
+        _startup_logger.info("Sentinel shadow mode disabled (SENTINEL_SHADOW_MODE not set)")
+
     yield
 
 
@@ -65,6 +103,7 @@ app.include_router(directives_router, dependencies=[Depends(require_api_key)])
 app.include_router(fingerprint_router, dependencies=[Depends(require_api_key)])
 app.include_router(kpi_router,         dependencies=[Depends(require_api_key)])
 app.include_router(insight_router,     dependencies=[Depends(require_api_key)])
+app.include_router(sentinel_router,    dependencies=[Depends(require_api_key)])
 
 
 # ---------------------------------------------------------------------------

@@ -1,4 +1,9 @@
 import React, { useState } from "react";
+import { SentinelDashboard } from "./pages/SentinelDashboard";
+
+// ---------------------------------------------------------------------------
+// Insight Generator (original view — preserved unchanged)
+// ---------------------------------------------------------------------------
 
 interface Insight {
   id: number;
@@ -62,7 +67,6 @@ function InsightCard({ insight }: { insight: Insight }) {
         boxShadow: "0 2px 8px rgba(0,0,0,0.07)",
       }}
     >
-      {/* Title row */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div style={{ fontWeight: 700, fontSize: 17, color: "#111827", lineHeight: 1.3 }}>
           {insight.title}
@@ -70,53 +74,31 @@ function InsightCard({ insight }: { insight: Insight }) {
         <span style={typeBadge}>{insight.insight_type}</span>
       </div>
 
-      {/* Entity metadata */}
       <div style={{ fontSize: 12, color: "#6b7280", marginTop: 6 }}>
         Entity: <span style={{ fontWeight: 600 }}>{insight.entity_type}</span>
         {" · "}ID: <span style={{ fontWeight: 600 }}>{insight.entity_id}</span>
       </div>
 
-      {/* Confidence chip */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
         <span style={{ fontSize: 12, color: "#6b7280" }}>Confidence</span>
-        <span
-          style={{
-            fontSize: 12,
-            fontWeight: 700,
-            padding: "3px 10px",
-            borderRadius: 20,
-            background: badgeBg,
-            color: badgeColor,
-          }}
-        >
+        <span style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: badgeBg, color: badgeColor }}>
           {pct}%
         </span>
       </div>
 
-      {/* Divider */}
       <div style={{ borderTop: "1px solid #f3f4f6", margin: "16px 0" }} />
 
-      {/* Explainability Trace — rendered when the AI route returns the list */}
       {Array.isArray(insight.explainability) && insight.explainability.length > 0 && (
         <div style={{ marginBottom: 12 }}>
           <div style={sectionLabel}>Explainability Trace</div>
-          <ul
-            style={{
-              margin: 0,
-              paddingLeft: 18,
-              listStyleType: "disc",
-            }}
-          >
+          <ul style={{ margin: 0, paddingLeft: 18, listStyleType: "disc" }}>
             {insight.explainability.map((item, i) => (
-              <li key={i} style={{ ...sectionBody, marginBottom: 4 }}>
-                {item}
-              </li>
+              <li key={i} style={{ ...sectionBody, marginBottom: 4 }}>{item}</li>
             ))}
           </ul>
         </div>
       )}
 
-      {/* Explanation — shown only when the raw list is absent (template-based insights) */}
       {insight.explanation && !(Array.isArray(insight.explainability) && insight.explainability.length > 0) && (
         <div style={{ marginBottom: 12 }}>
           <div style={sectionLabel}>Explanation</div>
@@ -124,20 +106,13 @@ function InsightCard({ insight }: { insight: Insight }) {
         </div>
       )}
 
-      {/* Recommended Action */}
       {insight.recommended_action && (
-        <div
-          style={{
-            borderLeft: `3px solid ${accentColor}`,
-            paddingLeft: 12,
-          }}
-        >
+        <div style={{ borderLeft: `3px solid ${accentColor}`, paddingLeft: 12 }}>
           <div style={sectionLabel}>Recommended Action</div>
           <p style={sectionBody}>{insight.recommended_action}</p>
         </div>
       )}
 
-      {/* Fallback body if no enrichment fields present */}
       {!insight.explanation && !insight.recommended_action && !(Array.isArray(insight.explainability) && insight.explainability.length > 0) && (
         <p style={{ fontSize: 13, color: "#4b5563", margin: 0, lineHeight: 1.5 }}>{insight.body}</p>
       )}
@@ -172,11 +147,11 @@ function ResultsPanel({ insights, filter }: { insights: Insight[]; filter: "all"
   );
 }
 
-export default function App() {
-  const [insights, setInsights] = useState<Insight[]>([]);
-  const [loadingMode, setLoadingMode] = useState<"standard" | "ai" | null>(null);
-  const [filter, setFilter] = useState<"all" | "kpi" | "risk" | "ai">("all");
-  const [error, setError] = useState<string | null>(null);
+function InsightGenerator() {
+  const [insights, setInsights]         = useState<Insight[]>([]);
+  const [loadingMode, setLoadingMode]   = useState<"standard" | "ai" | null>(null);
+  const [filter, setFilter]             = useState<"all" | "kpi" | "risk" | "ai">("all");
+  const [error, setError]               = useState<string | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState("student_101");
 
   const loading = loadingMode !== null;
@@ -189,7 +164,7 @@ export default function App() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Api-Key": import.meta.env.VITE_API_KEY ?? "",
+          "X-Api-Key": (import.meta as { env: Record<string, string> }).env.VITE_API_KEY ?? "",
         },
         body: JSON.stringify({ entity_id: selectedStudentId, entity_type: "student" }),
       });
@@ -197,9 +172,9 @@ export default function App() {
         setError(`Request failed: HTTP ${res.status} ${res.statusText}`);
         return;
       }
-      const data = await res.json();
+      const data = await res.json() as { insights?: Insight[] };
       setInsights(data.insights ?? []);
-    } catch (e) {
+    } catch {
       setError("Could not reach the server. Check that the backend is running.");
     } finally {
       setLoadingMode(null);
@@ -207,30 +182,21 @@ export default function App() {
   }
 
   return (
-    <main style={{ fontFamily: "sans-serif", maxWidth: 640, margin: "80px auto", padding: "0 24px" }}>
+    <main style={{ fontFamily: "sans-serif", maxWidth: 640, margin: "0 auto", padding: "32px 24px" }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       <h1 style={{ marginBottom: 8 }}>Insight Generator</h1>
-      <p style={{ color: "#555", marginBottom: 32 }}>
-        Generate insights from KPI and fingerprint data.
-      </p>
+      <p style={{ color: "#555", marginBottom: 32 }}>Generate insights from KPI and fingerprint data.</p>
 
       <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 13, color: "#374151", display: "block", marginBottom: 6 }}>
-          Student
-        </label>
+        <label style={{ fontSize: 13, color: "#374151", display: "block", marginBottom: 6 }}>Student</label>
         <select
           value={selectedStudentId}
           onChange={(e) => setSelectedStudentId(e.target.value)}
           disabled={loading}
           style={{
-            padding: "8px 12px",
-            fontSize: 14,
-            border: "1px solid #d1d5db",
-            borderRadius: 6,
-            background: "#fff",
-            color: "#111827",
-            cursor: loading ? "not-allowed" : "pointer",
-            minWidth: 180,
+            padding: "8px 12px", fontSize: 14, border: "1px solid #d1d5db",
+            borderRadius: 6, background: "#fff", color: "#111827",
+            cursor: loading ? "not-allowed" : "pointer", minWidth: 180,
           }}
         >
           <option value="student_101">student_101</option>
@@ -243,13 +209,9 @@ export default function App() {
           onClick={() => generateInsights("/insight/generate")}
           disabled={loading}
           style={{
-            padding: "10px 20px",
-            fontSize: 14,
+            padding: "10px 20px", fontSize: 14,
             background: loadingMode === "standard" ? "#93c5fd" : "#2563eb",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            cursor: loading ? "not-allowed" : "pointer",
+            color: "#fff", border: "none", borderRadius: 6, cursor: loading ? "not-allowed" : "pointer",
           }}
         >
           {loadingMode === "standard" ? "Generating..." : "Generate Standard Insights"}
@@ -258,13 +220,9 @@ export default function App() {
           onClick={() => generateInsights("/insight/generate/ai")}
           disabled={loading}
           style={{
-            padding: "10px 20px",
-            fontSize: 14,
+            padding: "10px 20px", fontSize: 14,
             background: loadingMode === "ai" ? "#a78bfa" : "#7c3aed",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            cursor: loading ? "not-allowed" : "pointer",
+            color: "#fff", border: "none", borderRadius: 6, cursor: loading ? "not-allowed" : "pointer",
           }}
         >
           {loadingMode === "ai" ? "Generating..." : "Generate AI Insights"}
@@ -286,12 +244,8 @@ export default function App() {
                 key={f}
                 onClick={() => setFilter(f)}
                 style={{
-                  padding: "6px 16px",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  borderRadius: 6,
-                  border: "1px solid",
-                  cursor: "pointer",
+                  padding: "6px 16px", fontSize: 13, fontWeight: 600,
+                  borderRadius: 6, border: "1px solid", cursor: "pointer",
                   borderColor: filter === f ? "#2563eb" : "#d1d5db",
                   background: filter === f ? "#2563eb" : "#fff",
                   color: filter === f ? "#fff" : "#374151",
@@ -304,40 +258,24 @@ export default function App() {
         );
       })()}
 
-      <div
-        style={{
-          marginTop: 16,
-          padding: 24,
-          background: "#f9fafb",
-          border: "1px solid #e5e7eb",
-          borderRadius: 8,
-          minHeight: 120,
-        }}
-      >
+      <div style={{
+        marginTop: 16, padding: 24, background: "#f9fafb",
+        border: "1px solid #e5e7eb", borderRadius: 8, minHeight: 120,
+      }}>
         {loading ? (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 0" }}>
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                border: "3px solid #e5e7eb",
-                borderTop: "3px solid #2563eb",
-                borderRadius: "50%",
-                animation: "spin 0.75s linear infinite",
-              }}
-            />
+            <div style={{
+              width: 36, height: 36, border: "3px solid #e5e7eb",
+              borderTop: "3px solid #2563eb", borderRadius: "50%",
+              animation: "spin 0.75s linear infinite",
+            }} />
             <p style={{ color: "#6b7280", fontSize: 13, marginTop: 12, marginBottom: 0 }}>Generating insights...</p>
           </div>
         ) : error ? (
-          <div
-            style={{
-              background: "#fef2f2",
-              border: "1px solid #fca5a5",
-              borderLeft: "4px solid #dc2626",
-              borderRadius: 8,
-              padding: "12px 16px",
-            }}
-          >
+          <div style={{
+            background: "#fef2f2", border: "1px solid #fca5a5",
+            borderLeft: "4px solid #dc2626", borderRadius: 8, padding: "12px 16px",
+          }}>
             <div style={{ fontWeight: 700, fontSize: 13, color: "#b91c1c", marginBottom: 4 }}>Request failed</div>
             <div style={{ fontSize: 13, color: "#7f1d1d" }}>{error}</div>
           </div>
@@ -348,5 +286,70 @@ export default function App() {
         )}
       </div>
     </main>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Root — top-level navigation
+// ---------------------------------------------------------------------------
+
+type View = "insights" | "sentinel";
+
+export default function App() {
+  const [view, setView] = useState<View>("insights");
+
+  return (
+    <div style={{ fontFamily: "sans-serif" }}>
+      {/* Top navigation bar */}
+      <nav
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 2,
+          padding: "0 24px",
+          borderBottom: "1px solid #e5e7eb",
+          background: "#fff",
+          position: "sticky",
+          top: 0,
+          zIndex: 100,
+          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+        }}
+      >
+        <div style={{ fontWeight: 800, fontSize: 15, color: "#111827", marginRight: 24, padding: "14px 0" }}>
+          Colaberry AI
+        </div>
+        {(
+          [
+            { key: "insights", label: "Insight Generator" },
+            { key: "sentinel", label: "Sentinel Dashboard" },
+          ] as Array<{ key: View; label: string }>
+        ).map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setView(key)}
+            style={{
+              padding: "14px 16px",
+              fontSize: 13,
+              fontWeight: 600,
+              border: "none",
+              borderBottom: view === key ? "2px solid #2563eb" : "2px solid transparent",
+              background: "none",
+              cursor: "pointer",
+              color: view === key ? "#2563eb" : "#6b7280",
+              marginBottom: -1,
+            }}
+          >
+            {label}
+          </button>
+        ))}
+        <div style={{ marginLeft: "auto", fontSize: 11, color: "#9ca3af", padding: "14px 0" }}>
+          shadow-mode
+        </div>
+      </nav>
+
+      {/* View content */}
+      {view === "insights"  && <InsightGenerator />}
+      {view === "sentinel"  && <SentinelDashboard />}
+    </div>
   );
 }

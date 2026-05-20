@@ -21,7 +21,8 @@ Read + write:       TriggeredUser, ConversationState
 Write-only:         ChatBotAuditLog, EngagementEvent
 """
 
-from datetime import datetime
+import enum
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Optional
 
@@ -416,4 +417,191 @@ class GeneratedInsight(Base):
             f"insight_type={self.insight_type!r} "
             f"entity_type={self.entity_type!r} "
             f"confidence={self.confidence}>"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Enums for AIInterpretation
+# ---------------------------------------------------------------------------
+
+class InterpretationDimension(str, enum.Enum):
+    engagement                   = "engagement"
+    assignment_performance       = "assignment_performance"
+    learning_effectiveness       = "learning_effectiveness"
+    retention_risk               = "retention_risk"
+    communication_responsiveness = "communication_responsiveness"
+    intervention_effectiveness   = "intervention_effectiveness"
+
+
+class InterpretationRiskLevel(str, enum.Enum):
+    low      = "low"
+    medium   = "medium"
+    high     = "high"
+    critical = "critical"
+    unknown  = "unknown"
+
+
+class InterpretationGeneratedBy(str, enum.Enum):
+    claude               = "claude"
+    deterministic_engine = "deterministic_engine"
+    fallback             = "fallback"
+
+
+def _stale_after_default() -> datetime:
+    """Column default: created_at + 14 days. Called at INSERT time by SQLAlchemy."""
+    return datetime.utcnow() + timedelta(days=14)
+
+
+# ---------------------------------------------------------------------------
+# 12. AIInterpretation
+# ---------------------------------------------------------------------------
+
+class AIInterpretation(Base):
+    """Maps to AI_ChatBot_AIInterpretations (write-only, append-only).
+
+    Durable, versioned, auditable AI-generated student state evaluations.
+
+    Invalidation over deletion
+    ──────────────────────────
+    Historical interpretations are never deleted. When new data supersedes an
+    existing interpretation, the old record is marked inactive (is_active=False,
+    invalidated_at set, invalidation_reason recorded) and a new record is inserted.
+    This preserves the causal chain: any mentor action or governance decision
+    referencing an interpretation_id remains traceable indefinitely.
+
+    source_metrics_hash
+    ───────────────────
+    SHA-256 hex of the input KPI + fingerprint payload. Query pattern:
+      WHERE entity_id = ? AND source_metrics_hash = ?
+        AND is_active = 1 AND stale_after > NOW()
+    If a row matches, return the cached interpretation — no Claude call needed.
+
+    stale_after
+    ───────────
+    Defaults to INSERT time + 14 days via _stale_after_default(). Interpretations
+    past this date are treated as unactionable by the governance layer even if
+    is_active = True.
+
+    Future integration points
+    ─────────────────────────
+    - MaterialChangeEngine: compares consecutive interpretations for significant delta
+    - GovernanceApprovalService: routes high-risk rows to ApprovalRequests table
+    - EngagementEvents: INSIGHT_GENERATED event keyed by entity_id
+    """
+
+    __tablename__ = "AI_ChatBot_AIInterpretations"
+
+    id                     = Column(Integer,     primary_key=True, autoincrement=True)
+    created_at             = Column(DateTime,    nullable=False,  default=datetime.utcnow)
+    updated_at             = Column(DateTime,    nullable=False,  default=datetime.utcnow, onupdate=datetime.utcnow)
+    invalidated_at         = Column(DateTime,    nullable=True)
+
+    entity_id              = Column(String(100), nullable=False,  index=True)
+    entity_type            = Column(String(50),  nullable=False,  index=True)
+
+    dimension              = Column(String(50),  nullable=False)
+    interpretation_version = Column(Integer,     nullable=False,  default=1)
+
+    confidence             = Column(Float,       nullable=False)
+    risk_level             = Column(String(20),  nullable=False)
+
+    summary                = Column(Text,        nullable=False)
+    recommended_action     = Column(Text,        nullable=True)
+
+    explainability_json    = Column(Text,        nullable=True)   # JSON-serialized list[str]
+    source_metrics_hash    = Column(String(64),  nullable=True,   index=True)
+    source_snapshot_json   = Column(Text,        nullable=True)   # JSON-serialized dict
+
+    generated_by           = Column(String(30),  nullable=False)
+    model_name             = Column(String(100), nullable=True)
+
+    stale_after            = Column(DateTime,    nullable=True,   default=_stale_after_default)
+    is_active              = Column(Boolean,     nullable=False,  default=True)
+    invalidation_reason    = Column(Text,        nullable=True)
+
+    def __repr__(self) -> str:
+        return (
+            f"<AIInterpretation id={self.id} "
+            f"entity_id={self.entity_id!r} "
+            f"dimension={self.dimension!r} "
+            f"risk_level={self.risk_level!r} "
+            f"confidence={self.confidence} "
+            f"is_active={self.is_active}>"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Enums for GovernanceReview
+# ---------------------------------------------------------------------------
+
+class GovernanceReviewStatus(str, enum.Enum):
+    pending  = "pending"
+    approved = "approved"
+    rejected = "rejected"
+    deferred = "deferred"
+
+
+# ---------------------------------------------------------------------------
+# 13. GovernanceReview
+# ---------------------------------------------------------------------------
+
+class GovernanceReview(Base):
+    """Maps to AI_ChatBot_GovernanceReviews (write + update, never delete).
+
+    Human-governed review queue for AI-generated interpretations.
+    Every new AIInterpretation automatically creates a GovernanceReview(status="pending").
+    No downstream automation may execute until status="approved".
+
+    Lifecycle
+    ─────────
+    pending  → approved  : reviewer confirms risk level is actionable
+    pending  → rejected  : reviewer disputes interpretation (review_notes required)
+    pending  → deferred  : reviewer requests more data (governance_reason required)
+    approved → deferred  : rare edge case — escalation after initial approval
+
+    Historical preservation
+    ───────────────────────
+    Review records are never deleted. is_active=False is reserved for future
+    supersession logic (e.g., a new review row replaces this one). In V1 it is
+    always True.
+
+    audit_snapshot_json
+    ───────────────────
+    JSON capture of the interpretation state and governance context at the moment
+    the review was created. Immutable after creation. Provides a self-contained
+    audit record that remains valid even if the referenced interpretation is later
+    invalidated or updated.
+    """
+
+    __tablename__ = "AI_ChatBot_GovernanceReviews"
+
+    id                  = Column(Integer,     primary_key=True, autoincrement=True)
+    created_at          = Column(DateTime,    nullable=False,   default=datetime.utcnow)
+    updated_at          = Column(DateTime,    nullable=False,   default=datetime.utcnow,
+                                              onupdate=datetime.utcnow)
+
+    interpretation_id   = Column(Integer,     nullable=False,   index=True)
+    entity_id           = Column(String(100), nullable=False,   index=True)
+    entity_type         = Column(String(50),  nullable=False)
+
+    status              = Column(String(20),  nullable=False,   default="pending")
+
+    reviewed_by         = Column(String(200), nullable=True)
+    reviewed_at         = Column(DateTime,    nullable=True)
+    review_notes        = Column(Text,        nullable=True)
+
+    governance_reason   = Column(Text,        nullable=False)
+    risk_level          = Column(String(20),  nullable=False)
+    confidence          = Column(Float,       nullable=False)
+
+    audit_snapshot_json = Column(Text,        nullable=True)    # JSON-serialized dict, immutable
+    is_active           = Column(Boolean,     nullable=False,   default=True)
+
+    def __repr__(self) -> str:
+        return (
+            f"<GovernanceReview id={self.id} "
+            f"interpretation_id={self.interpretation_id} "
+            f"entity_id={self.entity_id!r} "
+            f"status={self.status!r} "
+            f"risk_level={self.risk_level!r}>"
         )
