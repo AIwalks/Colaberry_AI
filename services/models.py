@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, func, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, func, Index, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from config.database import Base  # shared Base — do not redefine here
@@ -604,4 +604,226 @@ class GovernanceReview(Base):
             f"entity_id={self.entity_id!r} "
             f"status={self.status!r} "
             f"risk_level={self.risk_level!r}>"
+        )
+
+
+# ---------------------------------------------------------------------------
+# 14. InterventionOutcome
+# ---------------------------------------------------------------------------
+
+class InterventionOutcome(Base):
+    """Maps to AI_ChatBot_InterventionOutcomes (write + update, never delete).
+
+    One row per fired trigger. Records the before-state at enrollment time,
+    the after-state when the evaluation window closes, and the computed
+    outcome label.  Primary input for the Outcome Learning system.
+
+    Lifecycle
+    ─────────
+    pending      → improved     : after_last_activity_days < before by >= minimum_delta_days
+    pending      → not_improved : delivery succeeded but no measurable activity recovery
+    pending      → inconclusive : delivery gate failed, before-state unavailable, student
+                                  was already healthy, or after-state could not be captured
+
+    Enrollment
+    ──────────
+    Created by InterventionOutcomeService.enroll() immediately after
+    MentorMessageService writes DeliverySucceeded to TriggeredUsers.
+    The UNIQUE constraint on cbm_id enforces one evaluation per trigger —
+    duplicate enroll() calls are safe no-ops.
+
+    Evaluation
+    ──────────
+    Scored by InterventionOutcomeService.evaluate_ready_outcomes() when
+    window_end <= utcnow() and outcome = 'pending'.  The composite index on
+    (outcome, window_end) makes this query efficient.
+
+    before_snapshot_source
+    ──────────────────────
+    'interpretation' — last_activity_days read from AIInterpretation.source_snapshot_json.
+                       Immutable frozen snapshot; preferred source.
+    'trigger_data'   — read live from TriggerData.LastActivityDays at enrollment time.
+                       Valid fallback when no interpretation exists for the student.
+    'unavailable'    — neither source accessible; outcome will be inconclusive.
+
+    entity_id / user_id type mismatch
+    ──────────────────────────────────
+    AIInterpretation.entity_id is String(100); TriggeredUsers.UserID is Integer.
+    The enrollment lookup uses entity_id = str(user_id) at the application layer.
+    No database-level FK is defined here — consistent with the FK-style reference
+    pattern used by DeliveryLog.cbm_id and GovernanceReview.interpretation_id.
+    """
+
+    __tablename__ = "AI_ChatBot_InterventionOutcomes"
+
+    __table_args__ = (
+        # Composite index — the scheduler query:
+        #   WHERE outcome = 'pending' AND window_end <= NOW()
+        Index("ix_intervention_outcomes_outcome_window_end", "outcome", "window_end"),
+    )
+
+    id                        = Column(Integer,     primary_key=True, autoincrement=True)
+    created_at                = Column(DateTime,    nullable=False,  default=datetime.utcnow)
+    updated_at                = Column(DateTime,    nullable=False,  default=datetime.utcnow,
+                                       onupdate=datetime.utcnow)
+
+    # --- Intervention identity -------------------------------------------------
+    cbm_id                    = Column(Integer,     nullable=False,  unique=True)
+    # FK-style ref to AI_ChatBot_TriggeredUsers.CBM_ID; unique = one eval per trigger.
+
+    user_id                   = Column(Integer,     nullable=True,   index=True)
+    # Denormalized from TriggeredUsers.UserID; nullable because UserID is Optional on
+    # TriggeredUsers — rows with UserID=NULL must still be enrolled.
+
+    interpretation_id         = Column(Integer,     nullable=True,   index=True)
+    # FK-style ref to AI_ChatBot_AIInterpretations.id active at window_start.
+    # NULL when no interpretation existed for the student at trigger time.
+
+    # --- Evaluation window ----------------------------------------------------
+    window_start              = Column(DateTime,    nullable=False)
+    # Copied from TriggeredUsers.InsertDate at enrollment time.
+
+    window_end                = Column(DateTime,    nullable=False)
+    # = window_start + evaluation_window_days days.
+
+    evaluation_window_days    = Column(Integer,     nullable=False,  default=14)
+    # Stored per-record so the window used is self-documenting and can vary
+    # by trigger type or experiment group in future sprints.
+
+    # --- Delivery gate --------------------------------------------------------
+    delivery_gate_passed      = Column(Boolean,     nullable=False,  default=False)
+    # True only when TriggeredUsers.DeliverySucceeded = True.
+    # Records where this is False are always inconclusive — the intervention
+    # never reached the student so no outcome can be attributed to it.
+
+    # --- Before-state (captured at enrollment) --------------------------------
+    before_last_activity_days = Column(Integer,     nullable=True)
+    before_risk_level         = Column(String(20),  nullable=True)
+    before_snapshot_source    = Column(String(30),  nullable=False,  default="unavailable")
+    # See docstring for valid values: 'interpretation' | 'trigger_data' | 'unavailable'
+
+    # --- After-state (populated by evaluation job) ----------------------------
+    after_last_activity_days  = Column(Integer,     nullable=True)
+    after_risk_level          = Column(String(20),  nullable=True)
+    after_captured_at         = Column(DateTime,    nullable=True)
+
+    # --- Outcome --------------------------------------------------------------
+    outcome                   = Column(String(20),  nullable=False,  default="pending")
+    # 'pending' | 'improved' | 'not_improved' | 'inconclusive'
+
+    outcome_reason            = Column(String(300), nullable=True)
+    # Machine-written plain-English explanation of the classification decision.
+
+    eligible_for_learning     = Column(Boolean,     nullable=True,   index=True)
+    # True  → improved or not_improved; record is a labeled training example.
+    # False → inconclusive; excluded from learning aggregates.
+    # NULL  → pending; not yet determined.
+
+    evaluated_at              = Column(DateTime,    nullable=True)
+
+    def __repr__(self) -> str:
+        return (
+            f"<InterventionOutcome id={self.id} "
+            f"cbm_id={self.cbm_id} "
+            f"user_id={self.user_id} "
+            f"outcome={self.outcome!r} "
+            f"eligible_for_learning={self.eligible_for_learning}>"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Recommendation
+# ---------------------------------------------------------------------------
+
+class Recommendation(Base):
+    """Maps to AI_ChatBot_Recommendations (write-only, append-only).
+
+    One row per recommendation generated for a triggered student.  Records the
+    exact recommendation surfaced to the mentor alongside the frozen student
+    context that produced it.
+
+    Invalidation over deletion
+    ──────────────────────────
+    Recommendations are never deleted.  When a newer recommendation supersedes
+    an existing one for the same (cbm_id, recommendation_key), the old row is
+    marked inactive (is_active=False, invalidated_at set, invalidation_reason
+    recorded) and a new row is inserted.
+
+    recommendation_key vs recommendation_type
+    ──────────────────────────────────────────
+    recommendation_type  — broad action category for display ('reach_out',
+                           'escalate', 'monitor', 'academic_support').
+    recommendation_key   — granular learning identifier ('attendance_outreach',
+                           'homework_outreach', 'inactivity_outreach',
+                           'high_risk_escalation').  This is the primary key
+                           for all success-rate calculations.
+
+    recommendation_context_json
+    ───────────────────────────
+    NOT NULL.  JSON string (serialized by the service layer) capturing the
+    exact student state at generation time — risk_level, KPI values, dimension,
+    interpretation summary.  Preserves explainability even if interpretations
+    evolve later.  Supply '{}' if no context is available; never NULL.
+
+    No ORM relationships are declared.  Joins to AIInterpretation and
+    InterventionOutcome are performed via explicit queries in the service layer,
+    consistent with the FK-style reference pattern used throughout this file.
+    """
+
+    __tablename__ = "AI_ChatBot_Recommendations"
+
+    id                          = Column(Integer,     primary_key=True, autoincrement=True)
+    created_at                  = Column(DateTime,    nullable=False,  default=datetime.utcnow)
+    updated_at                  = Column(DateTime,    nullable=False,  default=datetime.utcnow,
+                                         onupdate=datetime.utcnow)
+
+    # --- Trigger + interpretation linkage ------------------------------------
+    cbm_id                      = Column(Integer,     nullable=False,  index=True)
+    # FK-style ref to AI_ChatBot_TriggeredUsers.CBM_ID.
+
+    interpretation_id           = Column(Integer,     nullable=True)
+    # FK-style ref to AI_ChatBot_AIInterpretations.id active at generation time.
+    # NULL when no interpretation existed for the student.
+
+    # --- Student identity ----------------------------------------------------
+    entity_id                   = Column(String(100), nullable=False,  index=True)
+
+    # --- Recommendation classification ---------------------------------------
+    recommendation_type         = Column(String(50),  nullable=False)
+    # Broad action category — display only; not used for learning calculations.
+
+    recommendation_key          = Column(String(100), nullable=False,  index=True)
+    # Granular learning identifier — primary key for all success-rate aggregations.
+
+    recommendation_text         = Column(Text,        nullable=False)
+    # Full recommendation text as shown to the mentor.
+
+    # --- Context at generation time ------------------------------------------
+    dimension                   = Column(String(50),  nullable=False,  index=True)
+    risk_level                  = Column(String(20),  nullable=False)
+    confidence                  = Column(Float,       nullable=False)
+
+    recommendation_context_json = Column(Text,        nullable=False)
+    # JSON-serialized dict of the student state at generation time.
+    # Callers serialize with json.dumps; consumers deserialize with json.loads.
+    # NOT NULL — supply '{}' if no context is available.
+
+    # --- Provenance ----------------------------------------------------------
+    generated_by                = Column(String(50),  nullable=False)
+    model_name                  = Column(String(100), nullable=True)
+
+    # --- Lifecycle -----------------------------------------------------------
+    is_active                   = Column(Boolean,     nullable=False,  default=True)
+    # True on insert.  Set to False when a newer recommendation supersedes this one.
+
+    invalidated_at              = Column(DateTime,    nullable=True)
+    invalidation_reason         = Column(Text,        nullable=True)
+
+    def __repr__(self) -> str:
+        return (
+            f"<Recommendation id={self.id} "
+            f"cbm_id={self.cbm_id} "
+            f"recommendation_key={self.recommendation_key!r} "
+            f"dimension={self.dimension!r} "
+            f"is_active={self.is_active}>"
         )

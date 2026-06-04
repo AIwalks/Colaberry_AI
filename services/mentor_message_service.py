@@ -8,6 +8,8 @@ from services.engagement_tracker_service import EngagementTrackerService
 from services.outbound_delivery_service import OutboundDeliveryService
 from services.models import TriggeredUser, TriggerRule, TriggerData
 from services.trigger_processing_service import TriggerEvaluator
+from services.intervention_outcome_service import InterventionOutcomeService
+from services.recommendation_tracking_service import RecommendationTrackingService
 
 
 class MentorMessageService:
@@ -91,8 +93,13 @@ class MentorMessageService:
             if triggered is None:
                 return {"sent": False, "reason": "not_found"}
 
-            _fallback = f"Trigger {triggered.TriggerType} level {triggered.TriggerLevel}"
-            user_id = triggered.UserID
+            _fallback      = f"Trigger {triggered.TriggerType} level {triggered.TriggerLevel}"
+            user_id        = triggered.UserID
+            window_start   = triggered.InsertDate
+            trigger_type   = triggered.TriggerType
+            trigger_level  = triggered.TriggerLevel
+            trigger_kpi    = triggered.KPI
+            trigger_severity = triggered.Severity
             try:
                 rule    = session.get(TriggerRule, triggered.CB_ID) if triggered.CB_ID is not None else None
                 student = session.get(TriggerData, triggered.UserID) if triggered.UserID is not None else None
@@ -174,6 +181,40 @@ class MentorMessageService:
                             retry_session.commit()
                 except Exception as retry_err:
                     print(f"[CRITICAL] DeliverySucceeded could not be persisted for cbm_id={cbm_id}: {retry_err}")
+            try:
+                with SessionLocal() as enroll_session:
+                    InterventionOutcomeService().enroll(
+                        db                 = enroll_session,
+                        cbm_id             = cbm_id,
+                        user_id            = user_id,
+                        delivery_succeeded = False,
+                        window_start       = window_start,
+                    )
+            except Exception as enroll_err:
+                print(f"[WARNING] Outcome enrollment failed for cbm_id={cbm_id}: {enroll_err}")
+            try:
+                with SessionLocal() as rec_session:
+                    RecommendationTrackingService().record(
+                        db                    = rec_session,
+                        cbm_id                = cbm_id,
+                        interpretation_id     = None,
+                        entity_id             = str(user_id) if user_id is not None else "",
+                        recommendation_type   = trigger_type or "unknown",
+                        recommendation_key    = f"{trigger_type}_{trigger_level}".lower().replace(" ", "_") if trigger_type and trigger_level else "unknown",
+                        recommendation_text   = message_text,
+                        dimension             = trigger_kpi or "general",
+                        risk_level            = trigger_level or "unknown",
+                        confidence            = 1.0,
+                        recommendation_context= {
+                            "trigger_type":  trigger_type,
+                            "trigger_level": trigger_level,
+                            "kpi":           trigger_kpi,
+                            "severity":      trigger_severity,
+                        },
+                        generated_by          = "MentorMessageService",
+                    )
+            except Exception as rec_err:
+                print(f"[WARNING] Recommendation tracking failed for cbm_id={cbm_id}: {rec_err}")
             return {"sent": False, "reason": "delivery_failed", "cbm_id": cbm_id}
 
         sent = any(r.get("success") for r in delivery_results)
@@ -200,5 +241,40 @@ class MentorMessageService:
                         retry_session.commit()
             except Exception as retry_err:
                 print(f"[CRITICAL] DeliverySucceeded could not be persisted for cbm_id={cbm_id}: {retry_err}")
+
+        try:
+            with SessionLocal() as enroll_session:
+                InterventionOutcomeService().enroll(
+                    db                 = enroll_session,
+                    cbm_id             = cbm_id,
+                    user_id            = user_id,
+                    delivery_succeeded = delivery_succeeded,
+                    window_start       = window_start,
+                )
+        except Exception as enroll_err:
+            print(f"[WARNING] Outcome enrollment failed for cbm_id={cbm_id}: {enroll_err}")
+        try:
+            with SessionLocal() as rec_session:
+                RecommendationTrackingService().record(
+                    db                    = rec_session,
+                    cbm_id                = cbm_id,
+                    interpretation_id     = None,
+                    entity_id             = str(user_id) if user_id is not None else "",
+                    recommendation_type   = trigger_type or "unknown",
+                    recommendation_key    = f"{trigger_type}_{trigger_level}".lower().replace(" ", "_") if trigger_type and trigger_level else "unknown",
+                    recommendation_text   = message_text,
+                    dimension             = trigger_kpi or "general",
+                    risk_level            = trigger_level or "unknown",
+                    confidence            = 1.0,
+                    recommendation_context= {
+                        "trigger_type":  trigger_type,
+                        "trigger_level": trigger_level,
+                        "kpi":           trigger_kpi,
+                        "severity":      trigger_severity,
+                    },
+                    generated_by          = "MentorMessageService",
+                )
+        except Exception as rec_err:
+            print(f"[WARNING] Recommendation tracking failed for cbm_id={cbm_id}: {rec_err}")
 
         return {"sent": sent, "cbm_id": cbm_id, "delivery_results": delivery_results}

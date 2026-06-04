@@ -326,3 +326,207 @@ class TestAtomicClaim:
                     "Completed flag must remain 1 after the already_claimed path executes"
         finally:
             _delete_triggered_user(cbm_id)
+
+
+# ---------------------------------------------------------------------------
+# Outcome enrollment wiring tests
+# Verify that InterventionOutcomeService.enroll() is called after
+# DeliverySucceeded write-back in both delivery outcomes.
+# All tests patch InterventionOutcomeService so no real DB is required.
+# ---------------------------------------------------------------------------
+
+
+class TestOutcomeEnrollmentTriggered:
+    """enroll() must be invoked after DeliverySucceeded is written, in both
+    the successful-delivery and the exception-delivery paths.  Failure of
+    enroll() must be fully absorbed — process_trigger() must still return
+    its normal result.
+    """
+
+    def test_enroll_called_after_successful_delivery(self):
+        """enroll() is called once with delivery_succeeded=True when ≥1 channel
+        succeeds and cbm_id matches the processed trigger.
+        """
+        cbm_id = _insert_triggered_user()
+        try:
+            fake_results = [
+                {"success": True, "channel": "sms", "provider": "twilio",
+                 "provider_id": "SM1", "error": None, "recipient": "+1555"},
+            ]
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=fake_results), \
+                 patch("services.mentor_message_service.InterventionOutcomeService") as mock_cls:
+                from services.mentor_message_service import MentorMessageService
+                result = MentorMessageService().process_trigger(cbm_id)
+
+            assert result.get("cbm_id") == cbm_id
+            mock_cls.return_value.enroll.assert_called_once()
+            kwargs = mock_cls.return_value.enroll.call_args.kwargs
+            assert kwargs["cbm_id"] == cbm_id
+            assert kwargs["delivery_succeeded"] is True
+        finally:
+            _delete_triggered_user(cbm_id)
+
+    def test_enroll_called_after_failed_delivery(self):
+        """enroll() is called once with delivery_succeeded=False when send_text()
+        raises an exception — the exception/failure delivery path.
+        """
+        cbm_id = _insert_triggered_user()
+        try:
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       side_effect=RuntimeError("network error")), \
+                 patch("services.mentor_message_service.InterventionOutcomeService") as mock_cls:
+                from services.mentor_message_service import MentorMessageService
+                result = MentorMessageService().process_trigger(cbm_id)
+
+            assert result.get("reason") == "delivery_failed"
+            mock_cls.return_value.enroll.assert_called_once()
+            kwargs = mock_cls.return_value.enroll.call_args.kwargs
+            assert kwargs["cbm_id"] == cbm_id
+            assert kwargs["delivery_succeeded"] is False
+        finally:
+            _delete_triggered_user(cbm_id)
+
+    def test_enroll_failure_does_not_break_process_trigger(self):
+        """If enroll() raises, process_trigger() must still return its
+        normal sent=True result — enrollment is a non-fatal side effect.
+        """
+        cbm_id = _insert_triggered_user()
+        try:
+            fake_results = [
+                {"success": True, "channel": "sms", "provider": "twilio",
+                 "provider_id": "SM1", "error": None, "recipient": "+1555"},
+            ]
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=fake_results), \
+                 patch("services.mentor_message_service.InterventionOutcomeService") as mock_cls:
+                mock_cls.return_value.enroll.side_effect = RuntimeError("enroll crash")
+                from services.mentor_message_service import MentorMessageService
+                result = MentorMessageService().process_trigger(cbm_id)
+
+            assert result.get("cbm_id") == cbm_id
+            assert result.get("sent") is True
+        finally:
+            _delete_triggered_user(cbm_id)
+
+    def test_enroll_not_called_on_already_claimed(self):
+        """The already_claimed path exits before delivery — enroll() must not
+        be called for a trigger that was already processed by another worker.
+        """
+        cbm_id = _insert_triggered_user()
+        try:
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=[]), \
+                 patch("services.mentor_message_service.InterventionOutcomeService") as mock_cls:
+                from services.mentor_message_service import MentorMessageService
+                svc = MentorMessageService()
+                svc.process_trigger(cbm_id)   # winner — enroll called once
+                svc.process_trigger(cbm_id)   # loser — already_claimed; enroll must not fire again
+
+            assert mock_cls.return_value.enroll.call_count == 1, \
+                "enroll() must be called exactly once across both invocations"
+        finally:
+            _delete_triggered_user(cbm_id)
+
+
+# ---------------------------------------------------------------------------
+# Recommendation tracking wiring tests
+# Verify that RecommendationTrackingService.record() is called after
+# InterventionOutcomeService.enroll() in both delivery outcomes.
+# All tests patch RecommendationTrackingService so no real DB is required.
+# ---------------------------------------------------------------------------
+
+
+class TestRecommendationTrackingTriggered:
+    """record() must be invoked after enroll() in both the successful-delivery
+    and exception-delivery paths.  Failure of record() must be fully absorbed
+    — process_trigger() must still return its normal result.
+    """
+
+    def test_tracking_called_after_successful_delivery(self):
+        """record() is called once with the correct cbm_id when delivery succeeds."""
+        cbm_id = _insert_triggered_user()
+        try:
+            fake_results = [
+                {"success": True, "channel": "sms", "provider": "twilio",
+                 "provider_id": "SM1", "error": None, "recipient": "+1555"},
+            ]
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=fake_results), \
+                 patch("services.mentor_message_service.RecommendationTrackingService") as mock_cls:
+                from services.mentor_message_service import MentorMessageService
+                result = MentorMessageService().process_trigger(cbm_id)
+
+            assert result.get("cbm_id") == cbm_id
+            mock_cls.return_value.record.assert_called_once()
+            kwargs = mock_cls.return_value.record.call_args.kwargs
+            assert kwargs["cbm_id"] == cbm_id
+        finally:
+            _delete_triggered_user(cbm_id)
+
+    def test_tracking_called_after_failed_delivery(self):
+        """record() is called once with the correct cbm_id when send_text() raises."""
+        cbm_id = _insert_triggered_user()
+        try:
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       side_effect=RuntimeError("network error")), \
+                 patch("services.mentor_message_service.RecommendationTrackingService") as mock_cls:
+                from services.mentor_message_service import MentorMessageService
+                result = MentorMessageService().process_trigger(cbm_id)
+
+            assert result.get("reason") == "delivery_failed"
+            mock_cls.return_value.record.assert_called_once()
+            kwargs = mock_cls.return_value.record.call_args.kwargs
+            assert kwargs["cbm_id"] == cbm_id
+        finally:
+            _delete_triggered_user(cbm_id)
+
+    def test_tracking_failure_does_not_break_process_trigger(self):
+        """If record() raises, process_trigger() must still return its normal
+        sent=True result — tracking is a non-fatal side effect.
+        """
+        cbm_id = _insert_triggered_user()
+        try:
+            fake_results = [
+                {"success": True, "channel": "sms", "provider": "twilio",
+                 "provider_id": "SM1", "error": None, "recipient": "+1555"},
+            ]
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=fake_results), \
+                 patch("services.mentor_message_service.RecommendationTrackingService") as mock_cls:
+                mock_cls.return_value.record.side_effect = RuntimeError("tracking crash")
+                from services.mentor_message_service import MentorMessageService
+                result = MentorMessageService().process_trigger(cbm_id)
+
+            assert result.get("cbm_id") == cbm_id
+            assert result.get("sent") is True
+        finally:
+            _delete_triggered_user(cbm_id)
+
+    def test_tracking_receives_context_dict(self):
+        """recommendation_context kwarg passed to record() must be a dict."""
+        cbm_id = _insert_triggered_user()
+        try:
+            fake_results = [
+                {"success": True, "channel": "sms", "provider": "twilio",
+                 "provider_id": "SM1", "error": None, "recipient": "+1555"},
+            ]
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=fake_results), \
+                 patch("services.mentor_message_service.RecommendationTrackingService") as mock_cls:
+                from services.mentor_message_service import MentorMessageService
+                MentorMessageService().process_trigger(cbm_id)
+
+            kwargs = mock_cls.return_value.record.call_args.kwargs
+            assert isinstance(kwargs["recommendation_context"], dict), \
+                "recommendation_context must be a dict, not None or a string"
+        finally:
+            _delete_triggered_user(cbm_id)

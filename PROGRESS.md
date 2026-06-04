@@ -1,7 +1,7 @@
 # PROGRESS.md
 **Colaberry Sentinel OS — Session Log & System Hardening Tracker**
 
-Last updated: 2026-06-03 (All Sprint 4 pre-commit gates resolved: 127 tests passing, directive created at directives/kpi_interpretation_contract.md, debug logging gated at logger.debug, auth guard confirmed at router level)
+Last updated: 2026-06-04 (Sprint 6 directive created at directives/recommendation_learning_contract.md; 61 Sprint 6 unit tests confirmed passing post-Sprint-4-commit; combined Sprint 5+6 commit strategy approved — Sprint 7 (migration 0014, RecommendationCandidatePool) remains excluded)
 
 ---
 
@@ -230,7 +230,7 @@ Last updated: 2026-06-03 (All Sprint 4 pre-commit gates resolved: 127 tests pass
 ---
 
 ## Sprint 5 — Outcome Learning: Full Implementation
-**Date: 2026-05-29 | Status: UNCOMMITTED — pending commit**
+**Date: 2026-05-29 | Status: READY FOR COMBINED SPRINT 5+6 COMMIT — 2026-06-04**
 **Status: Tested (unit + local); E2E pending DB validation**
 
 All implementation steps complete. Unit tests passing locally. E2E tests skip without
@@ -285,10 +285,11 @@ All implementation steps complete. Unit tests passing locally. E2E tests skip wi
 
 | File | Tests | Result |
 |---|---|---|
-| `tests/unit/test_intervention_outcome_service.py` | 66 (10 classes) | **66 passed** (1.21 s) |
-| `tests/unit/test_mentor_message_trigger.py` | 14 total | **13 passed, 1 skipped** (MSSQL integration test; expected) |
-| `tests/unit/test_outcome_evaluation_worker.py` | 6 | **6 passed** (0.56 s) |
+| `tests/unit/test_intervention_outcome_service.py` | 66 (10 classes) | **66 passed** (re-confirmed 2026-06-04 post-Sprint-4-commit) |
+| `tests/unit/test_mentor_message_trigger.py` | 14 total | **13 passed, 1 skipped** (MSSQL integration test; expected; Sprint 6 class also present — file is mixed) |
+| `tests/unit/test_outcome_evaluation_worker.py` | 6 | **6 passed** (re-confirmed 2026-06-04 post-Sprint-4-commit) |
 | `tests/e2e/test_outcome_learning_flow.py` | 11 | **11 skipped** — `MSSQL_DATABASE_URL` not set locally |
+| **Sprint 5 unit gate total** | **72** | **72 passed, 0 failed** (1.07 s — 2026-06-04) |
 
 `test_intervention_outcome_service.py` classes: `TestEnrollmentHappyPath` (9), `TestEnrollmentDeliveryGate` (3), `TestDuplicatePrevention` (3), `TestBeforeStateResolution` (8), `TestSnapshotParsing` (9), `TestImprovedOutcome` (7), `TestNotImprovedOutcome` (6), `TestInconclusiveOutcomes` (10), `TestEvaluateReadyOutcomes` (4), `TestDefensiveness` (7).
 
@@ -299,7 +300,9 @@ All implementation steps complete. Unit tests passing locally. E2E tests skip wi
 `test_outcome_learning_flow.py` E2E scenarios: enrollment creates pending record, idempotent enrollment, inconclusive (delivery gate), inconclusive (no before-state), inconclusive (healthy student), not_improved (delta=0), improved (delta=10), evaluated_at timestamped correctly, eligible_for_learning=False for all inconclusive variants, eligible_for_learning=True for scored outcomes, cleanup meta-test.
 
 ### Risks / Limitations
-- All Sprint 5 changes are UNCOMMITTED — need commit before entering repo history
+- All Sprint 5 changes are UNCOMMITTED — commit strategy decision required (see below)
+- **Mixed-file blocker**: `services/models.py`, `services/mentor_message_service.py`, and `tests/unit/test_mentor_message_trigger.py` contain Sprint 5 AND Sprint 6 changes interleaved — cannot be staged for Sprint 5 alone without `git add -p` partial staging or combining Sprint 5+6 into one commit. Recommended: combine Sprint 5 and Sprint 6 into a single commit.
+- ~~No directive for `InterventionOutcomeService`~~ — **RESOLVED 2026-06-04**: `directives/intervention_outcome_contract.md` created (466 lines); all 4 inconclusive checks, `eligible_for_learning` semantics, before-state priority, snapshot shapes, and threshold-change process documented
 - Migration 0012 not yet applied to SQL Server — `AI_ChatBot_InterventionOutcomes` table does not exist in any live DB yet; E2E tests cannot run until `alembic upgrade head` is executed
 - `eligible_for_learning` semantics: `True` = labeled training example (improved/not_improved); `False` = inconclusive; `NULL` = pending
 - `TriggerData` E2E helper inserts a sentinel row (`UserID=8888888`) — if the real SQL Server table has additional `NOT NULL` columns beyond `UserID`, `UserName`, `FirstName`, `LastName`, the insert will fail and `_insert_trigger_data()` will need those columns added
@@ -307,15 +310,16 @@ All implementation steps complete. Unit tests passing locally. E2E tests skip wi
 ### Maturity
 - `InterventionOutcome` ORM model — **Tested**
 - Migration 0012 — **Integrated** (file exists; not yet applied to any DB)
-- `InterventionOutcomeService` — **Tested**
+- `InterventionOutcomeService` — **Tested** (72 unit tests passing as of 2026-06-04)
 - Enrollment wiring (`mentor_message_service.py`) — **Tested**
 - Evaluation worker (`outcome_evaluation_worker.py`) — **Tested**
 - E2E flow (`test_outcome_learning_flow.py`) — **Integrated** (tests written; skipping locally; DB validation pending)
+- `directives/intervention_outcome_contract.md` — **Integrated** (466 lines; 13 sections; 4 inconclusive checks, eligible_for_learning semantics, before-state priority, snapshot parsing, threshold-change process)
 
 ---
 
 ## Sprint 5 — E2E Test Fixture Fixes (SQL Server Validation)
-**Date: 2026-05-30 | Status: UNCOMMITTED — fixture-only changes**
+**Date: 2026-05-30 | Status: UNCOMMITTED — included in Sprint 5 commit package**
 
 ### What Changed
 
@@ -337,8 +341,8 @@ All implementation steps complete. Unit tests passing locally. E2E tests skip wi
 ---
 
 ## Sprint 6 — Recommendation Learning (Phase 1–5)
-**Date: 2026-05-30 | Status: UNCOMMITTED — Phase 6 E2E not yet written**
-**Status: Tested (unit gate: 78 passed, 1 skipped, 0 failed)**
+**Date: 2026-05-30 | Status: READY FOR COMBINED SPRINT 5+6 COMMIT — 2026-06-04**
+**Status: Tested (unit gate: 61 passed, 0 failed — re-confirmed 2026-06-04 post-Sprint-4-commit)**
 
 ### What Changed
 
@@ -386,10 +390,10 @@ All implementation steps complete. Unit tests passing locally. E2E tests skip wi
 
 | File | Tests | Result |
 |---|---|---|
-| `tests/unit/test_recommendation_tracking_service.py` | 32 (3 classes) | **32 passed** |
-| `tests/unit/test_recommendation_learning_service.py` | 29 (2 classes) | **29 passed** |
-| `tests/unit/test_mentor_message_trigger.py` | 17 + 1 skipped | **17 passed, 1 skipped** |
-| **Total (Phase 5 gate)** | **78 + 1 skip** | **78 passed, 1 skipped, 0 failed** |
+| `tests/unit/test_recommendation_tracking_service.py` | 32 (3 classes) | **32 passed** (re-confirmed 2026-06-04 post-Sprint-4-commit) |
+| `tests/unit/test_recommendation_learning_service.py` | 29 (2 classes) | **29 passed** (re-confirmed 2026-06-04 post-Sprint-4-commit) |
+| `tests/unit/test_mentor_message_trigger.py` | 17 + 1 skipped | **17 passed, 1 skipped** (Sprint 5 + Sprint 6 classes; file is mixed — staged whole in combined commit) |
+| **Sprint 6 unit gate total** | **61** | **61 passed, 0 failed** (0.87 s — 2026-06-04) |
 
 `test_recommendation_tracking_service.py` classes: `TestSerializeContext` (8), `TestRecord` (17), `TestInvalidate` (7).
 `test_recommendation_learning_service.py` classes: `TestGetSuccessRates` (18), `TestGetRankedKeys` (11 including edge cases: tied rates, None success_rate, DB error recovery, ranked-before-unranked ordering).
@@ -402,7 +406,10 @@ All implementation steps complete. Unit tests passing locally. E2E tests skip wi
 | `test_is_active_defaults_true` returned `None` | ORM `default=True` fires during INSERT processing, not at object construction; mock `refresh()` is no-op | Explicitly pass `is_active=True` in `Recommendation(...)` constructor call inside `record()` |
 
 ### Risks / Limitations
-- All Sprint 6 changes are UNCOMMITTED — need commit before entering repo history
+- All Sprint 6 changes are UNCOMMITTED — will be committed as part of combined Sprint 5+6 commit
+- **Combined Sprint 5+6 commit strategy**: `services/mentor_message_service.py` and `tests/unit/test_mentor_message_trigger.py` contain Sprint 5 and Sprint 6 changes interleaved — staging them separately is not viable; both files are staged whole in the combined commit
+- **Sprint 7 exclusion required even in combined commit**: `alembic/versions/0014_add_recommendation_candidate_pools.py` is excluded entirely; `RecommendationCandidatePool` class (#16) in `services/models.py` must be excluded via `git add -p` — only the `InterventionOutcome` (#14) and `Recommendation` (#15) class hunks are staged
+- ~~No directive for `RecommendationTrackingService` and `RecommendationLearningService`~~ — **RESOLVED 2026-06-04**: `directives/recommendation_learning_contract.md` created (479 lines); idempotency rule, `_SafeEncoder` priority, `success_rate` formula, `min_sample=10`, ranking algorithm, no-candidate-dropped guarantee, and LLM prohibition documented
 - Migration 0013 not yet applied to SQL Server — `AI_ChatBot_Recommendations` table does not exist in any live DB
 - ~~Phase 6 (E2E validation tests) not yet written~~ — `tests/e2e/test_recommendation_learning_flow.py` written (7 tests in `TestRecommendationLearningFlow`); skipping locally; DB validation pending once migration 0013 is applied
 - `recommendation_key` derivation in `mentor_message_service.py` is mechanical (`type_level` pattern) — future improvement: lookup from a key registry
@@ -410,10 +417,11 @@ All implementation steps complete. Unit tests passing locally. E2E tests skip wi
 ### Maturity
 - `Recommendation` ORM model — **Tested**
 - Migration 0013 — **Integrated** (file exists; not yet applied to any DB)
-- `RecommendationTrackingService` — **Tested**
-- `RecommendationLearningService` — **Tested**
+- `RecommendationTrackingService` — **Tested** (32 tests passing as of 2026-06-04)
+- `RecommendationLearningService` — **Tested** (29 tests passing as of 2026-06-04)
 - `mentor_message_service.py` integration — **Tested**
 - E2E flow (`test_recommendation_learning_flow.py`) — **Integrated** (7 tests written; skipping locally; DB validation pending)
+- `directives/recommendation_learning_contract.md` — **Integrated** (479 lines; 14 sections; idempotency rule, _SafeEncoder priority, success_rate formula, min_sample=10, ranking algorithm, no-candidate-dropped guarantee, LLM prohibition)
 
 ---
 
