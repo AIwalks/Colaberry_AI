@@ -84,15 +84,14 @@ def _trigger_data(**kwargs) -> SimpleNamespace:
     return SimpleNamespace(**defaults)
 
 
-def _triggered_user(cbm_id=1, completed=1, delivery_succeeded=True) -> SimpleNamespace:
+def _triggered_user(cbm_id=1, completed=1) -> SimpleNamespace:
     return SimpleNamespace(
         CBM_ID=cbm_id,
         UserID=_USER_ID,
         TriggerType="engagement",
         Completed=completed,
-        CompletedDate=datetime(2025, 1, 10),
+        CompletedDate=datetime(2025, 1, 10) if completed else None,
         InsertDate=datetime(2025, 1, 8),
-        DeliverySucceeded=delivery_succeeded,
     )
 
 
@@ -170,10 +169,16 @@ def _make_full_db(
     if fingerprints     is _UNSET: fingerprints     = [_fingerprint()]
     if engagement_events is _UNSET: engagement_events = []
 
-    def _query_side_effect(model):
+    def _query_side_effect(*args):
         q = MagicMock()
-        q.filter.return_value  = q
-        q.in_              = MagicMock(return_value=True)
+        q.filter.return_value = q
+        q.in_                 = MagicMock(return_value=True)
+
+        # Resolve to ORM class: db.query(Model) passes the class directly;
+        # db.query(Model.col1, Model.col2, ...) passes InstrumentedAttribute objects
+        # whose .class_ property points back to the ORM class.
+        first = args[0] if args else None
+        model = getattr(first, "class_", first)
 
         if model is TriggerData:
             q.first.return_value = td

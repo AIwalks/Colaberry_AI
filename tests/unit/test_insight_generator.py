@@ -176,17 +176,21 @@ def test_kpi_insight_is_insight_instance():
 
 def test_kpi_insight_title_contains_kpi_name():
     result = InsightGenerator().generate_insights([make_kpi("avg_logins", confidence=0.8)], [], entity_id="test_entity", entity_type="test_type")
-    assert "avg_logins" in result.insights[0].title
+    # Title now uses human-readable label; raw field name is not surfaced in UI text
+    assert "Engagement signal" in result.insights[0].title
+    assert "avg_logins" not in result.insights[0].title
 
 
 def test_kpi_insight_body_contains_kpi_name():
     result = InsightGenerator().generate_insights([make_kpi("avg_logins", confidence=0.8)], [], entity_id="test_entity", entity_type="test_type")
-    assert "avg_logins" in result.insights[0].body
+    # Body uses human-readable label derived from kpi_name
+    assert "Avg logins" in result.insights[0].body
 
 
 def test_kpi_insight_body_contains_confidence():
     result = InsightGenerator().generate_insights([make_kpi("avg_logins", confidence=0.8)], [], entity_id="test_entity", entity_type="test_type")
-    assert "0.8" in result.insights[0].body
+    # Confidence is rendered as a percentage in the body
+    assert "80%" in result.insights[0].body
 
 
 def test_kpi_insight_confidence_matches_kpi_confidence():
@@ -206,12 +210,16 @@ def test_kpi_insight_source_patterns_is_empty():
 
 def test_risk_insight_title_contains_pattern_name():
     result = InsightGenerator().generate_insights([], [make_fingerprint(pattern_name="disengagement")], entity_id="test_entity", entity_type="test_type")
-    assert "disengagement" in result.insights[0].title
+    # Unknown patterns are capitalized for readability; check case-insensitively
+    assert "disengagement" in result.insights[0].title.lower()
 
 
-def test_risk_insight_body_contains_entity_id():
+def test_risk_insight_body_does_not_expose_entity_id():
+    """Body now describes the concern in human language, not internal identifiers."""
     result = InsightGenerator().generate_insights([], [make_fingerprint(entity_id="student_42")], entity_id="test_entity", entity_type="test_type")
-    assert "student_42" in result.insights[0].body
+    # Body must be a plain-language description, not an internal ID dump
+    assert "student_42" not in result.insights[0].body
+    assert len(result.insights[0].body) > 20  # non-empty meaningful text
 
 
 def test_risk_insight_confidence_matches_fingerprint_score():
@@ -236,7 +244,8 @@ def test_risk_insight_source_kpis_is_empty():
 def test_kpi_missing_kpi_name_uses_unknown_fallback():
     kpi = {"confidence": 0.9, "entity_type": "student"}
     result = InsightGenerator().generate_insights([kpi], [], entity_id="test_entity", entity_type="test_type")
-    assert "unknown" in result.insights[0].title
+    # Fallback label is capitalized; check case-insensitively
+    assert "unknown" in result.insights[0].title.lower()
 
 
 def test_kpi_missing_confidence_defaults_to_zero_no_insight():
@@ -256,7 +265,8 @@ def test_fingerprint_missing_risk_level_produces_no_insight():
 def test_fingerprint_missing_pattern_name_uses_unknown_fallback():
     fp = {"entity_type": "student", "entity_id": "s1", "risk_level": "high", "score": 0.9}
     result = InsightGenerator().generate_insights([], [fp], entity_id="test_entity", entity_type="test_type")
-    assert "unknown" in result.insights[0].title
+    # Fallback label is capitalized; check case-insensitively
+    assert "unknown" in result.insights[0].title.lower()
 
 
 def test_fingerprint_missing_entity_id_defaults_to_zero():

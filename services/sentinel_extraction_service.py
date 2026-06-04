@@ -565,14 +565,36 @@ class SentinelExtractionService:
         phone  = getattr(td_row, "PhoneNumber", None)
         email  = getattr(td_row, "Email", None)
 
-        # TriggeredUser: completion metrics
-        triggered_rows: list[TriggeredUser] = (
-            db.query(TriggeredUser)
-            .filter(TriggeredUser.UserID == user_id)
-            .all()
-        )
+        # TriggeredUser: completion metrics.
+        # Explicit column selection avoids selecting DeliverySucceeded, which is added
+        # by migration 0007 and is absent from SQL Server instances where that migration
+        # has not been applied. A full db.query(TriggeredUser) would fail with
+        # "Invalid column name 'DeliverySucceeded'" in those environments.
+        triggered_rows = []
+        try:
+            triggered_rows = (
+                db.query(
+                    TriggeredUser.CBM_ID,
+                    TriggeredUser.UserID,
+                    TriggeredUser.Completed,
+                    TriggeredUser.CompletedDate,
+                )
+                .filter(TriggeredUser.UserID == user_id)
+                .all()
+            )
+        except Exception:
+            logger.warning(
+                "SentinelExtraction[communication]: AI_ChatBot_TriggeredUsers query failed "
+                "for UserID=%d; continuing with empty trigger rows.", user_id,
+            )
+            try:
+                db.rollback()
+            except Exception:
+                pass
         total_triggers   = len(triggered_rows)
-        completed_count  = sum(1 for r in triggered_rows if _safe_int(r.Completed, 0) == 1)
+        completed_count  = sum(
+            1 for r in triggered_rows if _safe_int(getattr(r, "Completed", 0), 0) == 1
+        )
         completion_rate: Optional[float] = (
             round(completed_count / total_triggers, 4) if total_triggers > 0 else None
         )
@@ -677,7 +699,7 @@ class SentinelExtractionService:
         """Intervention effectiveness dimension.
 
         Primary sources:
-          - TriggeredUser: completion rates and DeliverySucceeded flags
+          - TriggeredUser: completion rates (Completed=1 / CompletedDate set)
           - DeliveryLog: delivery success/failure rates per channel
           - EngagementEvent: event types that indicate positive engagement
 
@@ -690,27 +712,57 @@ class SentinelExtractionService:
                 f"entity_id={entity_id!r} is not a valid integer UserID."
             )
 
-        # TriggeredUser
-        triggered_rows: list[TriggeredUser] = (
-            db.query(TriggeredUser)
-            .filter(TriggeredUser.UserID == user_id)
-            .all()
+        # TriggeredUser — explicit column selection only.
+        # DeliverySucceeded is intentionally excluded: it is added by migration 0007 and
+        # is absent from SQL Server instances where that migration has not been applied.
+        # A full db.query(TriggeredUser) generates "SELECT ... DeliverySucceeded ..." which
+        # SQL Server rejects with "Invalid column name 'DeliverySucceeded'" in those envs.
+        # Delivery success is inferred from Completed=1 OR CompletedDate IS NOT NULL instead.
+        triggered_rows = []
+        try:
+            triggered_rows = (
+                db.query(
+                    TriggeredUser.CBM_ID,
+                    TriggeredUser.UserID,
+                    TriggeredUser.Completed,
+                    TriggeredUser.CompletedDate,
+                )
+                .filter(TriggeredUser.UserID == user_id)
+                .all()
+            )
+        except Exception:
+            logger.warning(
+                "SentinelExtraction[intervention]: AI_ChatBot_TriggeredUsers query failed "
+                "for UserID=%d; continuing with empty trigger rows.", user_id,
+            )
+            try:
+                db.rollback()
+            except Exception:
+                pass
+        total_triggers  = len(triggered_rows)
+        completed_count = sum(
+            1 for r in triggered_rows if _safe_int(getattr(r, "Completed", 0), 0) == 1
         )
-        total_triggers   = len(triggered_rows)
-        completed_count  = sum(1 for r in triggered_rows if _safe_int(r.Completed, 0) == 1)
-        delivery_success = sum(1 for r in triggered_rows if r.DeliverySucceeded is True)
-        delivery_total   = sum(1 for r in triggered_rows if r.DeliverySucceeded is not None)
-
         cbm_ids = [r.CBM_ID for r in triggered_rows if r.CBM_ID is not None]
 
         # DeliveryLog: per-cbm_id success records
         delivery_rows: list[DeliveryLog] = []
         if cbm_ids:
-            delivery_rows = (
-                db.query(DeliveryLog)
-                .filter(DeliveryLog.cbm_id.in_(cbm_ids))
-                .all()
-            )
+            try:
+                delivery_rows = (
+                    db.query(DeliveryLog)
+                    .filter(DeliveryLog.cbm_id.in_(cbm_ids))
+                    .all()
+                )
+            except Exception:
+                logger.warning(
+                    "SentinelExtraction[intervention]: AI_ChatBot_DeliveryLog unavailable "
+                    "for UserID=%d; continuing with empty delivery logs.", user_id,
+                )
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
 
         dl_success_count = sum(1 for r in delivery_rows if r.success is True)
         dl_fail_count    = sum(1 for r in delivery_rows if r.success is False)
@@ -723,11 +775,22 @@ class SentinelExtractionService:
         channels_used = list({r.channel for r in delivery_rows if r.channel})
 
         # EngagementEvent: count of positive events for this user
-        engagement_events: list[EngagementEvent] = (
-            db.query(EngagementEvent)
-            .filter(EngagementEvent.user_id == user_id)
-            .all()
-        )
+        engagement_events: list[EngagementEvent] = []
+        try:
+            engagement_events = (
+                db.query(EngagementEvent)
+                .filter(EngagementEvent.user_id == user_id)
+                .all()
+            )
+        except Exception:
+            logger.warning(
+                "SentinelExtraction[intervention]: AI_ChatBot_EngagementEvents unavailable "
+                "for UserID=%d; continuing with empty events.", user_id,
+            )
+            try:
+                db.rollback()
+            except Exception:
+                pass
         total_events      = len(engagement_events)
         positive_events   = sum(
             1 for e in engagement_events

@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 from core.insight.generator import InsightGenerator
 from core.insight.models import InsightGenerationResult
 
-from services.models import BehaviorFingerprint, DiscoveredKPI
+from services.models import BehaviorFingerprint
+from services.sentinel_extraction_service import SentinelExtractionService
 
 if TYPE_CHECKING:
     from services.models import GeneratedInsight
@@ -20,29 +21,22 @@ class InsightService:
         entity_type: str,
     ) -> List[Dict[str, Any]]:
 
-        rows = (
-            db.query(DiscoveredKPI)
-            .filter(
-                DiscoveredKPI.entity_type == entity_type,
-            )
-            .all()
+        extraction = SentinelExtractionService().extract_student_state(
+            db, entity_id, entity_type
         )
 
-        result: List[Dict[str, Any]] = []
-
-        for r in rows:
-            result.append(
-                {
-                    "kpi_name": r.kpi_name,
-                    "source_pattern": r.source_pattern,
-                    "entity_type": r.entity_type,
-                    "formula": r.formula,
-                    "confidence": r.confidence,
-                    "sample_size": r.sample_size,
-                }
-            )
-
-        return result
+        kpis: List[Dict[str, Any]] = []
+        for dim in extraction.get("dimensions", {}).values():
+            for signal in dim.get("signals", []):
+                if signal.get("value") is None:
+                    continue
+                kpis.append({
+                    "kpi_name":   signal["name"],
+                    "value":      signal["value"],
+                    "unit":       signal.get("unit", ""),
+                    "confidence": signal.get("confidence", 0.0),
+                })
+        return kpis
 
     def load_fingerprints(
         self,

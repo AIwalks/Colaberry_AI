@@ -1,7 +1,7 @@
 # PROGRESS.md
 **Colaberry Sentinel OS — Session Log & System Hardening Tracker**
 
-Last updated: 2026-04-21 (DeliverySucceeded verified complete)
+Last updated: 2026-06-03 (All Sprint 4 pre-commit gates resolved: 127 tests passing, directive created at directives/kpi_interpretation_contract.md, debug logging gated at logger.debug, auth guard confirmed at router level)
 
 ---
 
@@ -70,19 +70,437 @@ Last updated: 2026-04-21 (DeliverySucceeded verified complete)
 
 ---
 
+## Sprint 2 — Governed AI Insight Generation with Explainability
+**Committed: 2026-05-13 | Commit: d22c8f6**
+**Status: Tested**
+
+### What Changed
+- **New:** `services/ai_insight_service.py` — `generate_ai_insight()` wraps Claude API call; returns structured JSON with `summary`, `risk_level`, `confidence`, `recommended_action`, `explainability`; falls back gracefully on API failure
+- **New:** `api/routes/insight.py` — insight generation endpoint with request/response validation
+- **Modified:** `api/schemas/insight.py` — schema aligned with new AI response shape
+- **Modified:** `app/main.py` — insight router registered
+- **New:** Alembic migrations:
+  - `0008_add_thread_id_to_engagement_events.py` — adds `thread_id` column to EngagementEvents for conversation continuity
+  - `0009_add_student_responses_table.py` — new StudentResponses table
+- **New:** `docs/AI_INSIGHT_LAYER.md`, `docs/AI_ROUTE_VALIDATION.md` — architecture documentation
+- **Modified:** `frontend/src/App.tsx` — routing updated for insight views
+
+### Validation
+- Tests added: `tests/unit/test_ai_insight_route.py` (route contract), `tests/unit/test_ai_insight_service.py` (service unit), `tests/unit/test_thread_id_persistence.py` (schema migration)
+- All tests pass at commit time
+
+### Risks / Limitations
+- Claude API call is live; no mock mode toggle for local dev
+- `tmp/staging_claim_test.py` committed — should be removed from permanent history (tmp/ should never be committed)
+- Migrations 0008/0009 require `alembic upgrade head` against target DB before going live
+
+### Maturity
+- `ai_insight_service.py` — **Tested**
+- `insight` route — **Tested**
+- Migrations 0008/0009 — **Integrated** (not yet applied to any verified DB)
+
+---
+
+## Sprint 3 — Governed AI Interpretation and Review Workflow (Sentinel OS)
+**Committed: 2026-05-20 | Commit: db7e075**
+**Status: Tested (backend); Scaffolded (frontend)**
+
+### What Changed
+**New services:**
+- `services/sentinel_extraction_service.py` (~958 lines) — reads TriggerData, TriggeredUsers, AuditLog, EngagementEvents; builds structured extraction with `dimensions`, `kpis`, `fingerprints`; mock mode for local dev
+- `services/sentinel_orchestration_service.py` (~591 lines) — full pipeline: extract → evaluate → load/invalidate interpretation → call AI → write back; governed reuse of existing interpretations
+- `services/governance_review_service.py` (~322 lines) — human review queue for AI interpretations; approve/reject/override workflow
+- `services/material_change_evaluation_service.py` (~373 lines) — determines whether KPI delta warrants a new AI interpretation vs. reusing the existing one
+- `services/database_connection_validator.py` (~187 lines) — connection health check utility
+
+**New API:**
+- `api/routes/sentinel.py` (~445 lines) — sentinel endpoints: interpretations, governance queue, reuse metrics, risk evolution, student detail
+- `api/schemas/ai_interpretation.py`, `api/schemas/governance_review.py` — Pydantic schemas
+
+**New DB models and migrations:**
+- `services/models.py` — new ORM models: `AIInterpretation`, `GovernanceReview`, `BehaviorFingerprint`
+- `0010_add_ai_interpretations_table.py` — AI interpretations table (103 lines)
+- `0011_add_governance_reviews_table.py` — governance reviews table (91 lines)
+
+**New frontend:**
+- `frontend/src/pages/SentinelDashboard.tsx` (~249 lines) — top-level dashboard page
+- New components: `EmptyState`, `GovernanceQueue`, `InterpretationTimeline`, `ReuseMetrics`, `RiskEvolution`, `StatusBadge`, `StudentDetailView`
+- New hooks: `useSentinelData.ts` additions
+- New types: `frontend/src/types/sentinel.ts`
+- Component tests: `EmptyState.test.tsx`, `GovernanceQueue.test.tsx`, `StatusBadge.test.tsx`, `SentinelDashboard.test.tsx`
+
+### Validation
+- Tests added (all backend):
+  - `test_ai_interpretation_model.py` (~402 lines)
+  - `test_database_connection_validator.py` (~324 lines)
+  - `test_governance_review_service.py` (~718 lines)
+  - `test_material_change_evaluation_service.py` (~742 lines)
+  - `test_sentinel_extraction_service.py` (~801 lines)
+  - `test_sentinel_orchestration_service.py` (~789 lines)
+- Frontend component tests: 3 files
+- Backend tests pass at commit time; frontend tests depend on vitest setup
+
+### Risks / Limitations
+- Frontend dashboard not browser-tested — component tests verify rendering only
+- Migrations 0010/0011 need `alembic upgrade head` against target DB
+- `SENTINEL_LIVE=False` (mock mode) is the default; real DB extraction unverified outside mock
+- `app/main.py` and `config/database.py` modified — regression risk to existing delivery pipeline
+
+### Maturity
+- `SentinelExtractionService` — **Tested**
+- `SentinelOrchestrationService` — **Tested**
+- `GovernanceReviewService` — **Tested**
+- `MaterialChangeEvaluationService` — **Tested**
+- `DatabaseConnectionValidator` — **Tested**
+- `AIInterpretation` / `GovernanceReview` models — **Tested**
+- Sentinel API routes — **Partially Implemented** (route contract exists; real DB path untested)
+- Frontend SentinelDashboard — **Scaffolded** (components render; no browser/E2E test)
+- Migrations 0010/0011 — **Integrated** (files exist, not applied to verified DB)
+
+---
+
+## Sprint 4 — KPI Interpretation Layer + Fingerprint Wiring
+**Date: 2026-05-28 | Status: READY FOR COMMIT — 2026-06-03**
+**Status: Tested (unit); Partially Implemented (wiring)**
+
+### What Changed (uncommitted)
+
+**`core/insight/generator.py`** — Added `interpret_kpi(kpi_name, value, unit)`:
+- Deterministic, value-aware KPI severity rules — no LLM, no randomness
+- Returns `{severity, suppress, title, body, recommended_action}`
+- `suppress=True` → healthy signal; caller skips generating an insight
+- Maps 8 KPI types: `attendance_percentage`, `last_activity_days`, `last_login_days`, `homeworks_behind`, `avg_hw_score`, `submission_rate` / `assignment_submission_rate`, `trigger_completion_rate`, `intervention_completion_rate`
+- Unknown KPI names fall through to existing generic behaviour (non-breaking)
+- `InsightGenerator.generate_insights()` updated to call `interpret_kpi` per KPI; healthy KPIs suppressed cleanly
+
+**`services/fingerprint_generator_service.py`** (new, untracked):
+- `FingerprintGeneratorService` — evaluates 4 deterministic behavioral rules against extracted signals
+- Rules: `stale_login_pattern` (≥14 days), `stale_activity_pattern` (≥14 days), `low_trigger_completion` (<25% rate with ≥3 triggers), `active_but_disconnected` (active class + active status + ≥14 days inactivity)
+- 24-hour dedup guard against `BehaviorFingerprint` table — prevents duplicate writes
+- Writes ONLY to `AI_ChatBot_BehaviorFingerprints`; no reads/writes to core production tables
+- Error isolation: per-fingerprint try/except; DB rollback on failure; returns partial results
+
+**`services/sentinel_orchestration_service.py`** — `FingerprintGeneratorService` wired as Step 1b:
+- Runs immediately after extraction (before AI call)
+- New fingerprints appended to `current_fingerprints` so AI sees them
+- Non-fatal: fingerprint failure is logged and execution continues
+- Debug payload logging added before AI call (KPIs + fingerprints JSON dump)
+
+**`services/ai_insight_service.py`** — System prompt and KPI label map overhauled:
+- Prompt rewritten for advisor-readable language (no jargon: no "behavioral fingerprint", "KPI", "sentinel", "trigger completion", "material change", "entity")
+- `_KPI_LABEL_MAP` added — translates internal signal names to plain English for AI context
+- Confidence calibration guidance added for sparse data
+
+**`api/routes/sentinel.py`** — `POST /sentinel/evaluate` endpoint added:
+- Runs full `SentinelOrchestrationService` pipeline for one student/dimension
+- Request model: `{entity_id, entity_type, dimension}`
+- Returns orchestration result as JSON
+
+**`api/schemas/insight.py`** — minor schema additions
+
+**Other modified files** (test and frontend updates):
+- `core/insight/service.py`, `skills/insight_explainer/skill.py`
+- `frontend/src/App.tsx`, `frontend/src/hooks/useSentinelData.ts`, `frontend/src/pages/SentinelDashboard.tsx`, `frontend/src/types/sentinel.ts`
+- `tests/e2e/test_insight_flow.py`, `tests/unit/test_insight_generator.py`, `tests/unit/test_sentinel_extraction_service.py`
+
+**New untracked test files:**
+- `tests/unit/test_fingerprint_generator_service.py` — 10 test classes covering rule evaluation (all 4 rules), dedup, DB write, partial failure, error isolation
+- `tests/unit/test_interpret_kpi.py` — 9 test classes covering all 8 KPI interpreters, boundary values (fence-post), fallback for unknown/None/non-numeric values, integration smoke-test through `InsightGenerator`
+
+### Validation
+- `test_fingerprint_generator_service.py` — **46 passed, 0 failed** (run 2026-06-03; 10 classes: signal flattening, all 4 behavioral rules, multi-rule firing, dedup, DB write, partial failure, error isolation)
+- `test_interpret_kpi.py` — **81 passed, 0 failed** (run 2026-06-03; 9 classes: all 8 KPI interpreters, boundary/fence-post values, non-numeric fallback, alias handling, integration smoke-test through `InsightGenerator`)
+- `test_insight_generator.py` — updated to reflect `interpret_kpi` integration
+- **Sprint 4 test gate total: 127 passed, 0 failed** (1.23 s — 2026-06-03)
+
+### Risks / Limitations
+- All Sprint 4 changes are UNCOMMITTED — need clean commit before they are part of repo history
+- ~~`POST /sentinel/evaluate` has no auth guard in current diff~~ — **RESOLVED 2026-06-03**: confirmed protected at router level via `app.include_router(sentinel_router, dependencies=[Depends(require_api_key)])` in `app/main.py:106`; all sentinel routes inherit the dependency; no per-route change required
+- ~~Debug payload logging in orchestration writes full KPI + fingerprint JSON to logs — may be noisy in production~~ — **RESOLVED 2026-06-03**: all 9 `SENTINEL_DEBUG_PAYLOAD` `logger.info()` calls changed to `logger.debug()` in `sentinel_orchestration_service.py`; payload is silent at production INFO level
+- ~~`interpret_kpi` thresholds are hardcoded — no directive documents them yet; risk of threshold drift~~ — **RESOLVED 2026-06-03**: `directives/kpi_interpretation_contract.md` created (279 lines); all 8 KPI rules documented with exact thresholds, business rationale, suppress=True contract, and mandatory threshold-change process
+
+### Maturity
+- `interpret_kpi()` — **Tested** (uncommitted; 127 unit tests passing as of 2026-06-03)
+- `FingerprintGeneratorService` — **Tested** (uncommitted)
+- Fingerprint wiring in orchestration — **Partially Implemented** (uncommitted; mock-mode untested end-to-end)
+- `POST /sentinel/evaluate` — **Scaffolded** (uncommitted; auth guard confirmed — router-level `Depends(require_api_key)` in `app/main.py:106`)
+- AI prompt overhaul — **Partially Implemented** (uncommitted; no before/after comparison test)
+- `directives/kpi_interpretation_contract.md` — **Integrated** (279 lines; 10 sections; all 8 KPI rules with thresholds, business rationale, suppress=True contract, and threshold-change process)
+
+---
+
+## Sprint 5 — Outcome Learning: Full Implementation
+**Date: 2026-05-29 | Status: UNCOMMITTED — pending commit**
+**Status: Tested (unit + local); E2E pending DB validation**
+
+All implementation steps complete. Unit tests passing locally. E2E tests skip without
+`MSSQL_DATABASE_URL` and are ready to run once migration 0012 is applied to SQL Server.
+
+### What Changed (uncommitted)
+
+**`services/models.py`** — `InterventionOutcome` ORM model added (model #14):
+- `__tablename__ = "AI_ChatBot_InterventionOutcomes"`
+- `__table_args__`: composite index `ix_intervention_outcomes_outcome_window_end` on `(outcome, window_end)` — required for scheduler query `WHERE outcome = 'pending' AND window_end <= NOW()`
+- 20 columns: id, created/updated_at, cbm_id (UNIQUE), user_id, interpretation_id, window_start/end, evaluation_window_days, delivery_gate_passed, before_last_activity_days, before_risk_level, before_snapshot_source, after_last_activity_days, after_risk_level, after_captured_at, outcome, outcome_reason, eligible_for_learning, evaluated_at
+- No FK constraints — consistent with DeliveryLog and GovernanceReview patterns
+
+**`alembic/versions/0012_add_intervention_outcomes_table.py`** (new):
+- revision="0012", down_revision="0011"
+- Creates `AI_ChatBot_InterventionOutcomes` with all 20 columns and server defaults
+- Server defaults: `evaluation_window_days=14`, `delivery_gate_passed=FALSE`, `before_snapshot_source='unavailable'`, `outcome='pending'`
+- Creates 5 indexes: `uq_intervention_outcomes_cbm_id` (UNIQUE), `ix_..._user_id`, `ix_..._interpretation_id`, `ix_..._eligible_for_learning`, `ix_..._outcome_window_end` (composite)
+- `downgrade()` drops all indexes before dropping table
+
+**`services/intervention_outcome_service.py`** (new, ~515 lines):
+- `InterventionOutcomeService` — manages enrollment + evaluation lifecycle
+- `enroll(db, cbm_id, user_id, delivery_succeeded, window_start, evaluation_window_days=14)`:
+  - Idempotent: dedup via `cbm_id` UNIQUE; returns existing record without modification
+  - `delivery_succeeded is True` → gate_passed; `None` or `False` → gate not passed
+  - Three-tier before-state: `AIInterpretation.source_snapshot_json` → `TriggerData.LastActivityDays` → `'unavailable'`
+  - Non-fatal: full try/except; rollback on error; returns None on failure
+- `evaluate_ready_outcomes(db, minimum_delta_days=3) → int`:
+  - Queries `outcome='pending' AND window_end <= utcnow()`; evaluates each with per-record exception isolation
+- `_evaluate_one`: 4 inconclusive checks in priority order (delivery gate → before state None → student already healthy ≤3 days → after state unavailable), then improved/not_improved via `delta = before - after`
+- `_extract_activity_days_from_snapshot`: handles Shape A (`kpis[].kpi_name`) and Shape B (`dimensions.*.signals[].name`)
+
+**`services/mentor_message_service.py`** — enrollment wired as non-blocking side effect:
+- `from services.intervention_outcome_service import InterventionOutcomeService` added to imports
+- `window_start = triggered.InsertDate` captured inside the main session block alongside `user_id`
+- `InterventionOutcomeService().enroll()` called in **both** delivery paths:
+  - Happy path: after `DeliverySucceeded` write-back, before final return; passes computed `delivery_succeeded`
+  - Exception path: after `DeliverySucceeded=False` write-back, before `return {"reason": "delivery_failed"}`; passes hardcoded `False`
+- Both call sites wrapped in `try/except Exception` — enroll failure is logged and swallowed; `process_trigger()` return value unchanged
+- `already_claimed` early-return is unaffected — both call sites are below it; enroll fires exactly once per trigger
+
+**`services/worker/outcome_evaluation_worker.py`** (new):
+- `evaluate_pending_outcomes() → int`: short-circuits if `not MSSQL_CONFIGURED`; opens one session; delegates entirely to `InterventionOutcomeService.evaluate_ready_outcomes(session)`; returns count
+- Runnable as `python -m services.worker.outcome_evaluation_worker`
+
+**`services/worker/run_outcome_evaluation_worker.py`** (new):
+- Long-running poll loop; default interval 300 s (`_POLL_INTERVAL_SECONDS`)
+- Rationale: outcomes only become evaluable after a 14-day window — 5-minute polling is more than sufficient
+- Graceful Ctrl+C shutdown
+
+### Validation
+
+| File | Tests | Result |
+|---|---|---|
+| `tests/unit/test_intervention_outcome_service.py` | 66 (10 classes) | **66 passed** (1.21 s) |
+| `tests/unit/test_mentor_message_trigger.py` | 14 total | **13 passed, 1 skipped** (MSSQL integration test; expected) |
+| `tests/unit/test_outcome_evaluation_worker.py` | 6 | **6 passed** (0.56 s) |
+| `tests/e2e/test_outcome_learning_flow.py` | 11 | **11 skipped** — `MSSQL_DATABASE_URL` not set locally |
+
+`test_intervention_outcome_service.py` classes: `TestEnrollmentHappyPath` (9), `TestEnrollmentDeliveryGate` (3), `TestDuplicatePrevention` (3), `TestBeforeStateResolution` (8), `TestSnapshotParsing` (9), `TestImprovedOutcome` (7), `TestNotImprovedOutcome` (6), `TestInconclusiveOutcomes` (10), `TestEvaluateReadyOutcomes` (4), `TestDefensiveness` (7).
+
+`test_mentor_message_trigger.py` additions: `TestOutcomeEnrollmentTriggered` (4 tests) — enroll called after successful delivery, enroll called after failed delivery, enroll failure absorbed, `already_claimed` path skips enroll.
+
+`test_outcome_evaluation_worker.py`: guard short-circuits without MSSQL, session not opened when guard fires, `evaluate_ready_outcomes` called with session, count propagated, zero-record case, exception behavior documented.
+
+`test_outcome_learning_flow.py` E2E scenarios: enrollment creates pending record, idempotent enrollment, inconclusive (delivery gate), inconclusive (no before-state), inconclusive (healthy student), not_improved (delta=0), improved (delta=10), evaluated_at timestamped correctly, eligible_for_learning=False for all inconclusive variants, eligible_for_learning=True for scored outcomes, cleanup meta-test.
+
+### Risks / Limitations
+- All Sprint 5 changes are UNCOMMITTED — need commit before entering repo history
+- Migration 0012 not yet applied to SQL Server — `AI_ChatBot_InterventionOutcomes` table does not exist in any live DB yet; E2E tests cannot run until `alembic upgrade head` is executed
+- `eligible_for_learning` semantics: `True` = labeled training example (improved/not_improved); `False` = inconclusive; `NULL` = pending
+- `TriggerData` E2E helper inserts a sentinel row (`UserID=8888888`) — if the real SQL Server table has additional `NOT NULL` columns beyond `UserID`, `UserName`, `FirstName`, `LastName`, the insert will fail and `_insert_trigger_data()` will need those columns added
+
+### Maturity
+- `InterventionOutcome` ORM model — **Tested**
+- Migration 0012 — **Integrated** (file exists; not yet applied to any DB)
+- `InterventionOutcomeService` — **Tested**
+- Enrollment wiring (`mentor_message_service.py`) — **Tested**
+- Evaluation worker (`outcome_evaluation_worker.py`) — **Tested**
+- E2E flow (`test_outcome_learning_flow.py`) — **Integrated** (tests written; skipping locally; DB validation pending)
+
+---
+
+## Sprint 5 — E2E Test Fixture Fixes (SQL Server Validation)
+**Date: 2026-05-30 | Status: UNCOMMITTED — fixture-only changes**
+
+### What Changed
+
+**`tests/e2e/test_outcome_learning_flow.py`** — three fixture fixes, no application code touched:
+
+1. **IDENTITY_INSERT failure** — replaced ORM-based `_insert_trigger_data()` with a raw `session.execute(text(...))` INSERT to avoid SQLAlchemy MSSQL dialect automatically issuing `SET IDENTITY_INSERT ON` for `TriggerData.UserID`. Root cause: `mapped_column(Integer, primary_key=True)` defaults to `autoincrement='auto'`; the dialect's `pre_exec()` hook fires when an explicit PK value is supplied. The real SQL Server column has no IDENTITY property.
+
+2. **`evaluated_at` precision failure** — updated assertion from strict `>=` to `>= before_eval - timedelta(milliseconds=10)`. Root cause: SQL Server `DATETIME` rounds to ~3.33 ms precision; `datetime.utcnow()` has microsecond precision; the stored value can round below the Python capture point.
+
+3. **NOT NULL columns** — added `GroupStatus`, `ChatGPT_prompt`, `DataDictionary` to the raw SQL INSERT. Root cause: real SQL Server schema has additional NOT NULL columns not present in the ORM model; omitting them causes `Cannot insert NULL into column` failures.
+
+### Validation
+- E2E tests are ready to re-run against SQL Server; all fixture errors corrected
+- No application code, ORM models, or migrations were modified
+
+### Maturity
+- `test_outcome_learning_flow.py` — **Integrated** (fixture corrected; DB validation run required)
+
+---
+
+## Sprint 6 — Recommendation Learning (Phase 1–5)
+**Date: 2026-05-30 | Status: UNCOMMITTED — Phase 6 E2E not yet written**
+**Status: Tested (unit gate: 78 passed, 1 skipped, 0 failed)**
+
+### What Changed
+
+**`alembic/versions/0013_add_recommendations_table.py`** (new):
+- revision="0013", down_revision="0012"
+- Creates `AI_ChatBot_Recommendations` with 18 columns
+- Notable: `recommendation_key` (granular learning identifier, separate from `recommendation_type`), `recommendation_context_json` NOT NULL (frozen student state snapshot at generation time), `is_active` with `server_default=sa.true()`
+- 4 indexes: `ix_recommendations_cbm_id`, `ix_recommendations_entity_id`, `ix_recommendations_recommendation_key`, `ix_recommendations_dimension`
+- `downgrade()` drops all indexes before dropping table
+
+**`services/models.py`** — `Recommendation` ORM model appended after `InterventionOutcome` (model #15):
+- 18 columns mirroring migration schema
+- `is_active = Column(Boolean, nullable=False, default=True)` — Python-side default
+- `created_at` / `updated_at` with `default=datetime.utcnow` and `onupdate=datetime.utcnow`
+- No FK constraints — consistent with existing pattern
+
+**`services/recommendation_tracking_service.py`** (new):
+- `_SafeEncoder` — `json.JSONEncoder` subclass; converts `datetime` → ISO-8601, `Decimal` → float, anything else → `str(obj)`. Never silently discards context; only catastrophic failures (circular reference) fall back to `'{}'`, always logged.
+- `_serialize_context(context: dict) -> str` — wraps `json.dumps` with `_SafeEncoder`; logged fallback to `'{}'`
+- `RecommendationTrackingService.record()` — idempotent: returns existing active row for same `(cbm_id, recommendation_key)` without inserting duplicate. Non-fatal: exception → rollback → return `None`.
+- `RecommendationTrackingService.invalidate()` — sets `is_active=False`, `invalidated_at`, `invalidation_reason`. No-op when row not found. Non-fatal.
+
+**`services/recommendation_learning_service.py`** (new):
+- `RecommendationLearningService.get_success_rates(db, *, dimension, risk_level, min_sample=10) -> list[dict]`:
+  - Joins `AI_ChatBot_Recommendations` to `AI_ChatBot_InterventionOutcomes` on `cbm_id`
+  - Filters `eligible_for_learning=True` and `is_active=True`; optional `dimension` / `risk_level` filters
+  - Groups by `recommendation_key`; computes `success_rate = total_improved / total_eligible` (None when 0)
+  - `has_sufficient_sample = total_eligible >= min_sample`
+  - Returns `[]` on any exception
+- `RecommendationLearningService.get_ranked_keys(db, candidates, ...) -> list[str]`:
+  - Sufficient-sample keys sorted by `success_rate` descending
+  - Insufficient-sample and unknown candidates appended in original order
+  - No candidates are ever removed
+  - Returns original candidate list on any exception
+
+**`services/mentor_message_service.py`** — Phase 4 integration:
+- `from services.recommendation_tracking_service import RecommendationTrackingService` added
+- 4 additional fields captured from session block: `trigger_type`, `trigger_level`, `trigger_kpi`, `trigger_severity`
+- `RecommendationTrackingService().record()` called non-fatally after each `InterventionOutcomeService().enroll()` call — both on success path and on delivery-failed path
+- `recommendation_key` derived as `f"{trigger_type}_{trigger_level}".lower().replace(" ", "_")` (falls back to `"unknown"`)
+- `recommendation_context` is a frozen dict of `{trigger_type, trigger_level, kpi, severity}`
+- No changes to return values or error propagation
+
+### Validation
+
+| File | Tests | Result |
+|---|---|---|
+| `tests/unit/test_recommendation_tracking_service.py` | 32 (3 classes) | **32 passed** |
+| `tests/unit/test_recommendation_learning_service.py` | 29 (2 classes) | **29 passed** |
+| `tests/unit/test_mentor_message_trigger.py` | 17 + 1 skipped | **17 passed, 1 skipped** |
+| **Total (Phase 5 gate)** | **78 + 1 skip** | **78 passed, 1 skipped, 0 failed** |
+
+`test_recommendation_tracking_service.py` classes: `TestSerializeContext` (8), `TestRecord` (17), `TestInvalidate` (7).
+`test_recommendation_learning_service.py` classes: `TestGetSuccessRates` (18), `TestGetRankedKeys` (11 including edge cases: tied rates, None success_rate, DB error recovery, ranked-before-unranked ordering).
+`test_mentor_message_trigger.py` additions (class `TestRecommendationTrackingTriggered`, 4 tests): tracking called after successful delivery, tracking called after failed delivery, tracking failure does not break `process_trigger`, tracking receives correct context dict.
+
+### Self-Annealing Events
+
+| Failure | Root Cause | Fix |
+|---------|------------|-----|
+| `test_is_active_defaults_true` returned `None` | ORM `default=True` fires during INSERT processing, not at object construction; mock `refresh()` is no-op | Explicitly pass `is_active=True` in `Recommendation(...)` constructor call inside `record()` |
+
+### Risks / Limitations
+- All Sprint 6 changes are UNCOMMITTED — need commit before entering repo history
+- Migration 0013 not yet applied to SQL Server — `AI_ChatBot_Recommendations` table does not exist in any live DB
+- ~~Phase 6 (E2E validation tests) not yet written~~ — `tests/e2e/test_recommendation_learning_flow.py` written (7 tests in `TestRecommendationLearningFlow`); skipping locally; DB validation pending once migration 0013 is applied
+- `recommendation_key` derivation in `mentor_message_service.py` is mechanical (`type_level` pattern) — future improvement: lookup from a key registry
+
+### Maturity
+- `Recommendation` ORM model — **Tested**
+- Migration 0013 — **Integrated** (file exists; not yet applied to any DB)
+- `RecommendationTrackingService` — **Tested**
+- `RecommendationLearningService` — **Tested**
+- `mentor_message_service.py` integration — **Tested**
+- E2E flow (`test_recommendation_learning_flow.py`) — **Integrated** (7 tests written; skipping locally; DB validation pending)
+
+---
+
+## Sprint 7 — Adaptive Recommendation Infrastructure (Phase 1: Schema + ORM)
+**Date: 2026-05-30 | Status: UNCOMMITTED — AdaptiveRecommendationService NOT IMPLEMENTED**
+**Status: Scaffolded (DB schema + ORM only; consuming service absent)**
+
+> **Session note (2026-06-03):** This sprint's artifacts were found in the working tree but absent from PROGRESS.md. Documented here to close the gap. No code was written this session — only this record was added.
+
+### What Changed (uncommitted)
+
+**`alembic/versions/0014_add_recommendation_candidate_pools.py`** (new, untracked):
+- revision="0014", down_revision="0013"
+- Creates `AI_ChatBot_RecommendationCandidatePools` — governance-controlled pool definitions
+- Maps one trigger context (`trigger_type + dimension` composite UNIQUE) to an ordered JSON array of candidate `recommendation_key` strings
+- Columns: `id`, `created_at`, `updated_at`, `trigger_type` (String 50), `dimension` (String 50), `candidate_keys_json` (Text, NOT NULL — minimum valid value `'[]'`), `min_sample_override` (Integer, nullable — NULL → system default 10), `epsilon_override` (Float, nullable — NULL → system default 0.05), `is_active` (Boolean, `server_default=True`)
+- 2 indexes: `uq_candidate_pools_trigger_dimension` (composite UNIQUE), `ix_candidate_pools_is_active`
+- `downgrade()` drops both indexes before dropping table
+- Soft-disable via `is_active=False`; rows are never deleted (pool definition history preserved for audit)
+- No FK constraints — consistent with all other Sentinel tables
+
+**`services/models.py`** — `RecommendationCandidatePool` ORM model appended (model #16):
+- `__tablename__ = "AI_ChatBot_RecommendationCandidatePools"`
+- `UniqueConstraint("trigger_type", "dimension", name="uq_candidate_pools_trigger_dimension")`
+- 9 columns mirroring migration schema
+- `candidate_keys_json` — service layer is responsible for JSON serialize/deserialize; raw text must never be stored
+- `min_sample_override` / `epsilon_override` — nullable; NULL delegates to `AdaptiveRecommendationService` system defaults
+- No ORM relationships declared — service layer joins explicitly by `trigger_type + dimension`
+- No FK constraints — consistent with existing pattern
+
+### Validation
+- No tests written for `RecommendationCandidatePool` ORM model or migration 0014 — **pre-commit gap**
+- `AdaptiveRecommendationService` — **NOT IMPLEMENTED**: service file does not exist; referenced in migration 0014 docstring and ORM model docstring as the consuming service; without it the pool table has no caller
+
+### Risks / Limitations
+- All Sprint 7 changes are UNCOMMITTED
+- Migration 0014 not yet applied to any DB — `AI_ChatBot_RecommendationCandidatePools` table does not exist in any live environment
+- `AdaptiveRecommendationService` is the sole consumer of `RecommendationCandidatePool`; without it the infrastructure is inert
+- No unit tests exist for the ORM model — must be written before commit
+- `candidate_keys_json` serialization logic is entirely deferred to the absent service
+
+### Maturity
+- `RecommendationCandidatePool` ORM model — **Scaffolded** (uncommitted; no tests)
+- Migration 0014 — **Integrated** (file exists; not yet applied to any DB)
+- `AdaptiveRecommendationService` — **NOT IMPLEMENTED** (service file does not exist; do not claim otherwise)
+
+---
+
 ## Pending Work
 
-### High Priority
+### Immediate (Sprint 6 DB validation gate)
+- [ ] Run `alembic upgrade head` against SQL Server to create `AI_ChatBot_Recommendations` (migration 0013)
+- [ ] Set `MSSQL_DATABASE_URL` and run `pytest tests/e2e/test_recommendation_learning_flow.py -v` — expect 7 passed
+- [ ] Confirm recommendation rows are created and cleaned up correctly after E2E run
+- [ ] Commit all Sprint 6 files in a single logical changeset
+
+### Immediate (Sprint 5 DB validation gate)
+- [ ] Run `alembic upgrade head` against SQL Server to create `AI_ChatBot_InterventionOutcomes`
+- [ ] Set `MSSQL_DATABASE_URL` and run `pytest tests/e2e/test_outcome_learning_flow.py -v` — expect tests to pass; E2E fixture fixes applied (raw SQL INSERT, 10ms evaluated_at tolerance, GroupStatus/ChatGPT_prompt/DataDictionary columns added)
+- [ ] Confirm real rows are created in `AI_ChatBot_InterventionOutcomes` after E2E run and cleaned up correctly
+- [ ] Commit all Sprint 5 files in a single logical changeset
+
+### Immediate (Sprint 4 commit gate)
+- [x] ~~Run `test_fingerprint_generator_service.py` and `test_interpret_kpi.py` locally~~ — **Resolved 2026-06-03**: 127 passed, 0 failed (46 + 81; 1.23 s)
+- [x] ~~Verify `POST /sentinel/evaluate` has auth guard (`Depends(require_api_key)`)~~ — **Resolved 2026-06-03**: confirmed at router level in `app/main.py:106`; no per-route change needed
+- [x] ~~Review debug payload logging — gate behind `DEBUG` log level or env flag~~ — **Resolved 2026-06-03**: all 9 `SENTINEL_DEBUG_PAYLOAD` calls changed from `logger.info` to `logger.debug` in `sentinel_orchestration_service.py`
+- [x] ~~Write directive for `interpret_kpi` thresholds~~ — **Resolved 2026-06-03**: `directives/kpi_interpretation_contract.md` created (279 lines, 10 sections)
+- [ ] Commit all Sprint 4 changes in logical changesets (generator layer, fingerprint service, orchestration wiring, AI prompt, routes, directive)
+
+### Immediate (Sprint 7 — AdaptiveRecommendationService)
+- [ ] Implement `AdaptiveRecommendationService` — reads `AI_ChatBot_RecommendationCandidatePools`, calls `RecommendationLearningService.get_ranked_keys()`, applies epsilon-greedy exploration (default epsilon=0.05, overridable per pool)
+- [ ] Write unit tests for `AdaptiveRecommendationService` and `RecommendationCandidatePool` ORM model before any commit
+- [ ] Wire `AdaptiveRecommendationService` into the appropriate pipeline call site (mentor message service or sentinel orchestration)
+- [ ] Apply migration 0014 to SQL Server only after unit tests pass
+- [ ] Commit all Sprint 7 files as a single logical changeset
+
+### High Priority (carry-forward)
 - [ ] Add trigger deduplication guard in `DbTriggerProcessingService.process()` — prevent double-queuing
-- [x] Fix stale `assert result["sent"] is True` in `tests/unit/test_mentor_message_trigger.py` — superseded by `TestDeliverySucceededWriteback` which correctly tests delivery truth propagation
-- [ ] Commit all uncommitted changes in clean changesets:
-  - Modified: `directives/outbound_delivery_contract.md`, `execution/init_local_db.py`, `services/mentor_message_service.py`, `services/outbound_delivery_service.py`, `services/models.py`, `tests/unit/test_outbound_delivery_service.py`, `tests/unit/test_mentor_message_trigger.py`
-  - Untracked: `directives/database_safety.md`, `docs/OWNER_CONTROL_PLANE.md`, `alembic/versions/0007_add_delivery_succeeded_to_triggered_users.py`
+- [ ] Apply Alembic migrations 0008–0011 against dev/staging DB and verify schema integrity
+- [ ] Browser-test SentinelDashboard — confirm components render correctly with mock data
+- [ ] Remove `tmp/staging_claim_test.py` from tracked files (tmp/ should not be committed)
 
 ### Medium Priority
 - [ ] Replace bare `except Exception: pass` at audit log call sites with `logger.error(...)` for visibility
 - [ ] Add `entity_id` `min_length=1` validation on `InsightGenerateRequest`
 - [ ] Disable FastAPI docs in production (`docs_url=None` when `DISABLE_DOCS=1`)
+- [ ] E2E test `POST /sentinel/evaluate` end-to-end with mock mode
 
 ### Provider Integrations (Scaffolded, Not Wired)
 - [ ] Twilio SMS — stub in place, integration point commented
@@ -105,3 +523,12 @@ Last updated: 2026-04-21 (DeliverySucceeded verified complete)
 | 2026-04-21 | `DeliverySucceeded` NULL on exception path | `process_trigger` except block returned before write-back | Write `False` in except block before return | — |
 | 2026-04-21 | Retry wrote hardcoded `False` instead of intended value | Retry used literal `False`, breaking NULL semantics for no-attempt case | Retry uses `delivery_succeeded` variable (None/True/False) | — |
 | 2026-04-21 | Tests for Cases C and E passed trivially | `MSSQL_CONFIGURED=False` caused early `no_db` return; function never reached write-back | Patch `MSSQL_CONFIGURED=True` in all 5 `TestDeliverySucceededWriteback` tests | — |
+| 2026-05-20 | AI prompt produced jargon-heavy output not usable by advisors | Prompt used internal terms: "entity", "KPI", "behavioral fingerprint", "sentinel" | Rewrote system prompt + added `_KPI_LABEL_MAP` to translate signal names before sending to Claude | — |
+| 2026-05-20 | Fingerprints not available to AI insight call | `FingerprintGeneratorService` existed but was never wired into orchestration | Added Step 1b in `SentinelOrchestrationService._run_pipeline()` — generate+persist before AI call; append to `current_fingerprints` | — |
+| 2026-05-28 | `InsightGenerator` generated insight for every KPI regardless of health | No severity or suppress logic existed; all KPIs produced insights | Added `interpret_kpi()` with per-KPI thresholds; `suppress=True` for healthy signals; `InsightGenerator` skips suppressed KPIs | — |
+| 2026-05-28 | `AIInterpretation` join to `TriggeredUsers` by user ID would silently fail | `entity_id` is `String(100)` but `UserID` is `Integer` — type mismatch at join | Application-layer coercion `entity_id = str(user_id)` documented in model, service, and comments throughout | — |
+| 2026-05-30 | E2E `_insert_trigger_data()` raised `IDENTITY INSERT` error against real SQL Server | `mapped_column(Integer, primary_key=True)` triggers MSSQL dialect `SET IDENTITY_INSERT ON` when explicit PK is supplied; real column has no IDENTITY property | Replaced ORM insert with `session.execute(text("INSERT INTO ..."), {...})` raw SQL | — |
+| 2026-05-30 | E2E `evaluated_at` assertion failed by ~2 ms against real SQL Server | SQL Server `DATETIME` rounds to ~3.33 ms; Python `datetime.utcnow()` captures microseconds; stored value can round below capture point | Changed assertion to `>= before_eval - timedelta(milliseconds=10)` | — |
+| 2026-05-30 | E2E insert failed with `Cannot insert NULL into column 'GroupStatus'` | Real SQL Server `AI_ChatBot_TriggerData` has additional NOT NULL columns (`GroupStatus`, `ChatGPT_prompt`, `DataDictionary`) not in original fixture | Added all three columns to the raw SQL INSERT in `_insert_trigger_data()` | — |
+| 2026-05-30 | `test_is_active_defaults_true` returned `None` instead of `True` | ORM `Column(Boolean, default=True)` fires during INSERT processing, not at object construction; mock `refresh()` is no-op so attribute stayed `None` | Explicitly pass `is_active=True` in `Recommendation(...)` constructor call inside `record()` | — |
+| 2026-06-03 | `SENTINEL_DEBUG_PAYLOAD` logs firing at INFO level in production — full KPI + fingerprint JSON emitted on every evaluation | All 9 `SENTINEL_DEBUG_PAYLOAD` format-string calls used `logger.info()` instead of `logger.debug()` | Changed all 9 occurrences to `logger.debug()` in `sentinel_orchestration_service.py`; silent at INFO in production, accessible with DEBUG log level | — |

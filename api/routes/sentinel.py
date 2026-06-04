@@ -21,10 +21,13 @@ from datetime import datetime, timedelta
 from typing import Any, Generator, Optional
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
+from sqlalchemy import case
 from sqlalchemy.orm import Session
 
 from config.database import MSSQL_CONFIGURED, SessionLocal
-from services.models import AIInterpretation, GovernanceReview, GovernanceReviewStatus
+from services.models import AIInterpretation, GovernanceReview, GovernanceReviewStatus, TriggerData
+from services.sentinel_orchestration_service import SentinelOrchestrationService
 
 logger = logging.getLogger(__name__)
 
@@ -200,6 +203,12 @@ _MOCK_INTERPRETATIONS: dict[str, list[dict[str, Any]]] = {
         },
     ],
 }
+
+_MOCK_STUDENTS: list[dict[str, Any]] = [
+    {"user_id": "student_101", "user_name": "student_101", "display_label": "Student 101 (demo)", "attendance": 72.0, "active_status": "active"},
+    {"user_id": "student_202", "user_name": "student_202", "display_label": "Student 202 (demo)", "attendance": 58.0, "active_status": "active"},
+    {"user_id": "student_303", "user_name": "student_303", "display_label": "Student 303 (demo)", "attendance": 85.0, "active_status": "active"},
+]
 
 _MOCK_REUSE_METRICS: dict[str, Any] = {
     "total_interpretations": 24,
@@ -443,3 +452,117 @@ def get_reuse_metrics(
         ),
         "source": "db",
     }
+
+
+# ---------------------------------------------------------------------------
+# Orchestration — request model
+# ---------------------------------------------------------------------------
+
+class SentinelEvaluateRequest(BaseModel):
+    entity_id: str
+    entity_type: str = "student"
+    dimension: str = "engagement"
+
+
+# ---------------------------------------------------------------------------
+# Orchestration — evaluate endpoint
+# ---------------------------------------------------------------------------
+
+@router.post("/evaluate")
+def evaluate_student(
+    body: SentinelEvaluateRequest,
+    db: Optional[Session] = Depends(_get_db_optional),
+) -> dict[str, Any]:
+    """Run the full Sentinel orchestration pipeline for one student/dimension.
+
+    Reads from TriggerData, TriggeredUsers, AuditLog, EngagementEvents.
+    Writes ONLY to AI_ChatBot_AIInterpretations and AI_ChatBot_GovernanceReviews.
+    No production/source tables are modified.
+
+    Returns an error shape when MSSQL is not configured — does not raise.
+    """
+    if db is None:
+        return {
+            "evaluated": False,
+            "source": "mock",
+            "generated_new_interpretation": False,
+            "used_cached_interpretation": False,
+            "interpretation_id": None,
+            "entity_id": body.entity_id,
+            "entity_type": body.entity_type,
+            "dimension": body.dimension,
+            "message": (
+                "Evaluation requires a live database connection. "
+                "Set MSSQL_CONFIGURED=true and SENTINEL_SHADOW_MODE=true to enable."
+            ),
+        }
+
+    result = SentinelOrchestrationService().orchestrate_student_evaluation(
+        db=db,
+        entity_id=body.entity_id,
+        entity_type=body.entity_type,
+        dimension=body.dimension,
+    )
+    # Surface error reason when the pipeline neither generated nor reused an interpretation.
+    # Both fields False = error path. The frontend reads `message` for display.
+    if not result.get("generated_new_interpretation") and not result.get("used_cached_interpretation"):
+        result = {**result, "message": result["evaluation_result"].get("reason", "Internal orchestration error.")}
+    return {"evaluated": True, "source": "db", **result}
+
+
+# ---------------------------------------------------------------------------
+# Student list endpoint
+# ---------------------------------------------------------------------------
+
+@router.get("/students")
+def get_students(
+    limit: int = Query(100, le=200),
+    db:    Optional[Session] = Depends(_get_db_optional),
+) -> dict[str, Any]:
+    """Return active students from TriggerData for the student picker.
+
+    Ordered by LastActivityDays ascending (most recently active first) with NULLs
+    sorted last via a CASE expression — safe on all SQL Server versions.
+    Read-only. No writes, no stored procedure calls.
+    Falls back to mock data when MSSQL is not configured.
+    """
+    if db is None:
+        return {"students": _MOCK_STUDENTS[:limit], "total": len(_MOCK_STUDENTS[:limit]), "source": "mock"}
+
+    rows = (
+        db.query(
+            TriggerData.UserID,
+            TriggerData.UserName,
+            TriggerData.FirstName,
+            TriggerData.LastName,
+            TriggerData.ActiveStatus,
+            TriggerData.IsClassActive,
+            TriggerData.LastActivityDays,
+            TriggerData.AttendancePercentage,
+        )
+        .filter(TriggerData.IsClassActive == 1)
+        .order_by(
+            # NULLs last: rows without LastActivityDays go to the end
+            case((TriggerData.LastActivityDays.is_(None), 1), else_=0),
+            TriggerData.LastActivityDays.asc(),
+        )
+        .limit(limit)
+        .all()
+    )
+    students = [
+        {
+            "user_id":            str(r.UserID),
+            "user_name":          r.UserName or "",
+            "display_label": (
+                f"{r.FirstName or ''} {r.LastName or ''}".strip()
+                or r.UserName
+                or str(r.UserID)
+            ),
+            "attendance":         r.AttendancePercentage,
+            "active_status":      r.ActiveStatus,
+            "last_activity_days": r.LastActivityDays,
+            "is_class_active":    r.IsClassActive,
+        }
+        for r in rows
+    ]
+    return {"students": students, "total": len(students), "source": "db"}

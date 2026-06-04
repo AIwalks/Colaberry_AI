@@ -53,6 +53,7 @@ from sqlalchemy.orm import Session
 
 from config.database import SENTINEL_LIVE
 from services.ai_insight_service import generate_ai_insight
+from services.fingerprint_generator_service import FingerprintGeneratorService
 from services.governance_review_service import GovernanceReviewService
 from services.material_change_evaluation_service import MaterialChangeEvaluationService
 from services.models import AIInterpretation, InterpretationGeneratedBy
@@ -122,10 +123,12 @@ class SentinelOrchestrationService:
         extraction_service:  Optional[SentinelExtractionService]       = None,
         evaluation_service:  Optional[MaterialChangeEvaluationService]  = None,
         governance_service:  Optional[GovernanceReviewService]          = None,
+        fingerprint_service: Optional[FingerprintGeneratorService]      = None,
     ) -> None:
-        self._extractor  = extraction_service  or SentinelExtractionService(use_mock=not SENTINEL_LIVE)
-        self._evaluator  = evaluation_service  or MaterialChangeEvaluationService()
-        self._governance = governance_service  or GovernanceReviewService()
+        self._extractor     = extraction_service  or SentinelExtractionService(use_mock=not SENTINEL_LIVE)
+        self._evaluator     = evaluation_service  or MaterialChangeEvaluationService()
+        self._governance    = governance_service  or GovernanceReviewService()
+        self._fingerprinter = fingerprint_service or FingerprintGeneratorService()
 
     # ------------------------------------------------------------------
     # Public API
@@ -212,6 +215,29 @@ class SentinelOrchestrationService:
             "SentinelOrchestration[%s]: extracted kpis=%d fingerprints=%d",
             entity_id, len(current_kpis), len(current_fingerprints),
         )
+        self._debug_log_payload(entity_id, extraction, dimension, current_kpis, current_fingerprints)
+
+        # ── STEP 1b: Generate and persist behavior fingerprints ───────
+        logger.info(
+            "SentinelOrchestration[%s]: STEP 1b — generating behavior fingerprints",
+            entity_id,
+        )
+        try:
+            new_fps = self._fingerprinter.generate_and_persist(
+                db, entity_id, entity_type, extraction
+            )
+            if new_fps:
+                logger.info(
+                    "SentinelOrchestration[%s]: %d new fingerprint(s) written: %s",
+                    entity_id, len(new_fps),
+                    [fp["pattern_name"] for fp in new_fps],
+                )
+                current_fingerprints = current_fingerprints + new_fps
+        except Exception as fp_exc:  # noqa: BLE001
+            logger.error(
+                "SentinelOrchestration[%s]: fingerprint generation failed (non-fatal): %s",
+                entity_id, fp_exc,
+            )
 
         # ── STEP 2: Load latest active interpretation ──────────────────
         logger.info(
@@ -320,6 +346,17 @@ class SentinelOrchestrationService:
             self._invalidate_interpretation(db, latest_interpretation, evaluation["reason"])
 
         # ── Call AI generation ─────────────────────────────────────────
+        logger.debug(
+            "SENTINEL_DEBUG_PAYLOAD[%s] PRE_AI_CALL kpis=%d fingerprints=%d payload:\n%s",
+            entity_id,
+            len(current_kpis),
+            len(current_fingerprints),
+            json.dumps(
+                {"entity_id": entity_id, "entity_type": entity_type,
+                 "kpis": current_kpis, "fingerprints": current_fingerprints},
+                indent=2, default=str,
+            ),
+        )
         ai_result = generate_ai_insight({
             "entity_id":   entity_id,
             "entity_type": entity_type,
@@ -479,6 +516,115 @@ class SentinelOrchestrationService:
             "SentinelOrchestration: invalidated interpretation id=%s reason=%r",
             getattr(interpretation, "id", None),
             reason[:80],
+        )
+
+    # ------------------------------------------------------------------
+    # Debug payload logger (temporary — safe to remove; no side effects)
+    # ------------------------------------------------------------------
+
+    def _debug_log_payload(
+        self,
+        entity_id: str,
+        extraction: dict[str, Any],
+        dimension: str,
+        current_kpis: list[dict[str, Any]],
+        current_fingerprints: list[dict[str, Any]],
+    ) -> None:
+        """Emit structured SENTINEL_DEBUG_PAYLOAD logs for the full extraction result.
+
+        Logs all dimension signals with null analysis, KPI filter results, and
+        fingerprint counts. Prefix SENTINEL_DEBUG_PAYLOAD makes these easy to
+        grep from server output. No writes, no side effects.
+        """
+        dims = extraction.get("dimensions", {})
+        summary = extraction.get("signal_summary", {})
+
+        logger.debug(
+            "SENTINEL_DEBUG_PAYLOAD[%s] SIGNAL_SUMMARY: "
+            "dimensions_with_data=%s total_signals=%s overall_confidence=%s "
+            "highest_risk_dimension=%r highest_risk_level=%r",
+            entity_id,
+            summary.get("dimensions_with_data"),
+            summary.get("total_signals"),
+            summary.get("overall_confidence"),
+            summary.get("highest_risk_dimension"),
+            summary.get("highest_risk_level"),
+        )
+
+        for dim_name, dim_data in dims.items():
+            signals = dim_data.get("signals", [])
+            null_names  = [s["name"] for s in signals if s.get("value") is None]
+            present     = [s for s in signals if s.get("value") is not None]
+            zero_conf   = [s["name"] for s in signals if float(s.get("confidence", 1.0)) == 0.0]
+
+            logger.debug(
+                "SENTINEL_DEBUG_PAYLOAD[%s] DIM=%r data_available=%s risk=%r "
+                "confidence=%.4f signals=%d present=%d null=%d zero_conf=%d null_names=%r",
+                entity_id,
+                dim_name,
+                dim_data.get("data_available"),
+                dim_data.get("risk_level"),
+                dim_data.get("confidence", 0.0),
+                len(signals),
+                len(present),
+                len(null_names),
+                len(zero_conf),
+                null_names,
+            )
+
+            for sig in signals:
+                logger.debug(
+                    "SENTINEL_DEBUG_PAYLOAD[%s]   SIGNAL dim=%r name=%-35r "
+                    "value=%-20r unit=%-10r confidence=%.2f",
+                    entity_id,
+                    dim_name,
+                    sig.get("name"),
+                    sig.get("value"),
+                    sig.get("unit"),
+                    float(sig.get("confidence", 0.0)),
+                )
+
+        logger.debug(
+            "SENTINEL_DEBUG_PAYLOAD[%s] KPI_FILTER dimension=%r "
+            "raw_signals=%d kpis_passing_filter=%d filtered_out=%d",
+            entity_id,
+            dimension,
+            len(dims.get(dimension, {}).get("signals", [])),
+            len(current_kpis),
+            len(dims.get(dimension, {}).get("signals", [])) - len(current_kpis),
+        )
+
+        if not current_kpis:
+            logger.debug(
+                "SENTINEL_DEBUG_PAYLOAD[%s] WARNING: zero KPIs passing filter — "
+                "all signals for dimension=%r are null or confidence=0.0; "
+                "AI will receive an empty KPI list",
+                entity_id, dimension,
+            )
+
+        for kpi in current_kpis:
+            logger.debug(
+                "SENTINEL_DEBUG_PAYLOAD[%s]   KPI name=%-35r value=%-20r "
+                "unit=%-10r confidence=%.2f",
+                entity_id,
+                kpi.get("kpi_name"),
+                kpi.get("value"),
+                kpi.get("unit"),
+                float(kpi.get("confidence", 0.0)),
+            )
+
+        logger.debug(
+            "SENTINEL_DEBUG_PAYLOAD[%s] FINGERPRINTS count=%d details=%s",
+            entity_id,
+            len(current_fingerprints),
+            json.dumps(current_fingerprints, default=str) if current_fingerprints
+            else "none (AI_ChatBot_BehaviorFingerprints empty or absent)",
+        )
+
+        logger.debug(
+            "SENTINEL_DEBUG_PAYLOAD[%s] FULL_EXTRACTION_JSON:\n%s",
+            entity_id,
+            json.dumps(extraction, indent=2, default=str),
         )
 
     # ------------------------------------------------------------------

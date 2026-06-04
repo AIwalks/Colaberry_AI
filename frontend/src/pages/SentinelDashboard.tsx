@@ -9,6 +9,7 @@ import {
   useInterpretationHistory,
   useLatestInterpretation,
   useReuseMetrics,
+  useStudentList,
 } from "../hooks/useSentinelData";
 
 // ---------------------------------------------------------------------------
@@ -25,7 +26,7 @@ const TABS: Array<{ key: TabKey; label: string; icon: string }> = [
   { key: "risk",       label: "Risk Evolution",            icon: "📈" },
 ];
 
-const STUDENT_OPTIONS = ["student_101", "student_202", "student_303"];
+// Student options are loaded dynamically from /sentinel/students
 
 // ---------------------------------------------------------------------------
 // Shared card wrapper
@@ -80,14 +81,84 @@ function ObservabilityBanner() {
 // Main dashboard
 // ---------------------------------------------------------------------------
 
+const _API_BASE = "http://localhost:8000";
+const _API_KEY = (import.meta as { env: Record<string, string> }).env.VITE_API_KEY ?? "";
+
 export function SentinelDashboard() {
   const [activeTab, setActiveTab] = useState<TabKey>("governance");
-  const [selectedStudent, setSelectedStudent] = useState(STUDENT_OPTIONS[0]);
+  const [selectedStudent, setSelectedStudent] = useState<string>("");
+  const [evalStatus, setEvalStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [evalMessage, setEvalMessage] = useState<string>("");
+
+  const studentListResult = useStudentList();
+  const studentOptions =
+    studentListResult.state.status === "success"
+      ? studentListResult.state.data.students
+      : [];
+
+  // Set the initial selection once the list arrives
+  React.useEffect(() => {
+    if (!selectedStudent && studentOptions.length > 0) {
+      setSelectedStudent(studentOptions[0].user_id);
+    }
+  }, [selectedStudent, studentOptions]);
 
   const metricsResult = useReuseMetrics();
   const latestResult  = useLatestInterpretation(selectedStudent);
   const historyResult = useInterpretationHistory(selectedStudent);
   const reviewsResult = useGovernanceReviews();
+
+  // Reset evaluation banner when the selected student changes
+  React.useEffect(() => {
+    setEvalStatus("idle");
+    setEvalMessage("");
+  }, [selectedStudent]);
+
+  const handleEvaluate = () => {
+    if (!selectedStudent) return;
+    setEvalStatus("running");
+    setEvalMessage("");
+    fetch(`${_API_BASE}/sentinel/evaluate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Api-Key": _API_KEY },
+      body: JSON.stringify({ entity_id: selectedStudent, entity_type: "student", dimension: "engagement" }),
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`);
+        return r.json() as Promise<{
+          evaluated: boolean;
+          generated_new_interpretation: boolean;
+          used_cached_interpretation: boolean;
+          message?: string;
+          evaluation_result?: { reason?: string };
+        }>;
+      })
+      .then((data) => {
+        let nextStatus: "done" | "error";
+        let msg: string;
+        if (data.generated_new_interpretation) {
+          nextStatus = "done";
+          msg = "New interpretation generated and queued for governance review.";
+        } else if (data.used_cached_interpretation) {
+          nextStatus = "done";
+          msg = "No material change — existing interpretation is current.";
+        } else {
+          nextStatus = "error";
+          msg = data.message || data.evaluation_result?.reason || "Evaluation failed — check server logs.";
+        }
+        setEvalStatus(nextStatus);
+        setEvalMessage(msg);
+        if (data.evaluated) {
+          latestResult.reload();
+          historyResult.reload();
+          reviewsResult.reload();
+        }
+      })
+      .catch((e: unknown) => {
+        setEvalStatus("error");
+        setEvalMessage(String(e));
+      });
+  };
 
   const studentReviews = {
     ...reviewsResult,
@@ -147,14 +218,23 @@ export function SentinelDashboard() {
             id="student-picker"
             value={selectedStudent}
             onChange={(e) => setSelectedStudent(e.target.value)}
+            disabled={studentListResult.state.status === "loading" || studentOptions.length === 0}
             style={{
               padding: "8px 12px", fontSize: 14, border: "1px solid #d1d5db",
               borderRadius: 6, background: "#fff", color: "#111827",
-              cursor: "pointer", minWidth: 180,
+              cursor: "pointer", minWidth: 200,
             }}
           >
-            {STUDENT_OPTIONS.map((s) => (
-              <option key={s} value={s}>{s}</option>
+            {studentListResult.state.status === "loading" && (
+              <option value="">Loading students…</option>
+            )}
+            {studentListResult.state.status === "error" && (
+              <option value="">Error loading students</option>
+            )}
+            {studentOptions.map((s) => (
+              <option key={s.user_id} value={s.user_id}>
+                {s.display_label}
+              </option>
             ))}
           </select>
         </div>
@@ -223,6 +303,40 @@ export function SentinelDashboard() {
 
       {activeTab === "student" && (
         <SectionCard>
+          {/* Evaluation controls */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+            <div>
+              <h2 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 700, color: "#111827" }}>
+                Student Detail
+              </h2>
+              <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>
+                AI interpretation and governance history for {selectedStudent || "—"}
+              </p>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+              <button
+                onClick={handleEvaluate}
+                disabled={!selectedStudent || evalStatus === "running"}
+                style={{
+                  padding: "8px 16px", fontSize: 13, fontWeight: 600,
+                  background: evalStatus === "running" ? "#e5e7eb" : "#2563eb",
+                  color: evalStatus === "running" ? "#6b7280" : "#fff",
+                  border: "none", borderRadius: 6, cursor: evalStatus === "running" ? "not-allowed" : "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {evalStatus === "running" ? "Evaluating…" : "Run Evaluation"}
+              </button>
+              {evalStatus === "done" && (
+                <span style={{ fontSize: 12, color: evalMessage.startsWith("New") ? "#059669" : "#6b7280" }}>
+                  {evalMessage}
+                </span>
+              )}
+              {evalStatus === "error" && (
+                <span style={{ fontSize: 12, color: "#dc2626" }}>{evalMessage}</span>
+              )}
+            </div>
+          </div>
           <StudentDetailView
             entityId={selectedStudent}
             latestState={latestResult.state}

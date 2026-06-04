@@ -10,11 +10,13 @@ in-process call chain:
     TestClient → route → InsightService → InsightGenerator → fake DB
 """
 
+from unittest.mock import patch
+
 from fastapi.testclient import TestClient
 
 from app.main import app
 from config.database import get_db
-from services.models import BehaviorFingerprint, DiscoveredKPI
+from services.models import BehaviorFingerprint
 
 
 # ---------------------------------------------------------------------------
@@ -50,8 +52,6 @@ class FakeSession:
         self._fingerprints = fingerprints if fingerprints is not None else []
 
     def query(self, model):
-        if model is DiscoveredKPI:
-            return FakeQuery(self._kpis)
         if model is BehaviorFingerprint:
             return FakeQuery(self._fingerprints)
         return FakeQuery([])
@@ -105,7 +105,43 @@ def override_db(kpis=None, fingerprints=None):
 client = TestClient(app, headers={"X-Api-Key": "test-key"})
 
 EXPECTED_TOP_KEYS = {"generated_count", "analyzed_kpis", "analyzed_fingerprints", "insights"}
-EXPECTED_INSIGHT_KEYS = {"id", "title", "body", "insight_type", "entity_type", "entity_id", "confidence"}
+EXPECTED_INSIGHT_KEYS = {
+    "id", "title", "body", "insight_type", "entity_type", "entity_id",
+    "confidence", "explanation", "recommended_action",
+}
+
+# ---------------------------------------------------------------------------
+# Extraction helpers — used to inject per-student KPI data via mock
+# ---------------------------------------------------------------------------
+
+_EXTRACTOR_PATCH = "core.insight.service.SentinelExtractionService"
+
+
+def make_signal(name: str = "avg_logins", confidence: float = 0.8,
+                value: float = 42.0, unit: str = "count") -> dict:
+    return {"name": name, "value": value, "unit": unit, "confidence": confidence}
+
+
+def make_extraction(signals=None) -> dict:
+    sigs = signals if signals is not None else []
+    return {
+        "entity_id":      "s1",
+        "entity_type":    "student",
+        "dimensions":     {
+            "engagement": {
+                "signals":             sigs,
+                "risk_level":          "low",
+                "confidence":          0.9,
+                "fingerprints":        [],
+                "data_available":      bool(sigs),
+                "source_record_count": 1,
+                "notes":               "fake",
+            }
+        },
+        "source_tables":  ["mock"],
+        "extracted_at":   "2026-01-01T00:00:00",
+        "signal_summary": {},
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -154,8 +190,12 @@ def test_insights_is_a_list():
 
 def test_qualifying_kpi_produces_insight_in_list():
     """Real generator: confidence=0.8 > 0.7 threshold → one kpi insight."""
-    app.dependency_overrides[get_db] = override_db(kpis=[FakeKPI(confidence=0.8)])
-    resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
+    app.dependency_overrides[get_db] = override_db()
+    with patch(_EXTRACTOR_PATCH) as MockExt:
+        MockExt.return_value.extract_student_state.return_value = make_extraction(
+            [make_signal(confidence=0.8)]
+        )
+        resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
     data = resp.json()
     assert data["generated_count"] == 1
     assert len(data["insights"]) == 1
@@ -171,8 +211,12 @@ def test_high_risk_fingerprint_produces_insight_in_list():
 
 
 def test_kpi_insight_type_is_kpi():
-    app.dependency_overrides[get_db] = override_db(kpis=[FakeKPI(confidence=0.9)])
-    resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
+    app.dependency_overrides[get_db] = override_db()
+    with patch(_EXTRACTOR_PATCH) as MockExt:
+        MockExt.return_value.extract_student_state.return_value = make_extraction(
+            [make_signal(confidence=0.9)]
+        )
+        resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
     assert resp.json()["insights"][0]["insight_type"] == "kpi"
 
 
@@ -225,20 +269,25 @@ def test_medium_risk_fingerprint_produces_no_insight():
 # ---------------------------------------------------------------------------
 
 def test_two_qualifying_kpis_produce_two_insights():
-    kpis = [FakeKPI("avg_logins", 0.9), FakeKPI("avg_sessions", 0.85)]
-    app.dependency_overrides[get_db] = override_db(kpis=kpis)
-    resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
+    app.dependency_overrides[get_db] = override_db()
+    with patch(_EXTRACTOR_PATCH) as MockExt:
+        MockExt.return_value.extract_student_state.return_value = make_extraction([
+            make_signal("avg_logins", 0.9),
+            make_signal("avg_sessions", 0.85),
+        ])
+        resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
     data = resp.json()
     assert data["generated_count"] == 2
     assert len(data["insights"]) == 2
 
 
 def test_qualifying_kpi_and_high_risk_fp_produce_two_insights():
-    app.dependency_overrides[get_db] = override_db(
-        kpis=[FakeKPI(confidence=0.9)],
-        fingerprints=[FakeFingerprint(risk_level="high")],
-    )
-    resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
+    app.dependency_overrides[get_db] = override_db(fingerprints=[FakeFingerprint(risk_level="high")])
+    with patch(_EXTRACTOR_PATCH) as MockExt:
+        MockExt.return_value.extract_student_state.return_value = make_extraction(
+            [make_signal(confidence=0.9)]
+        )
+        resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
     data = resp.json()
     assert data["generated_count"] == 2
     assert len(data["insights"]) == 2
@@ -246,9 +295,13 @@ def test_qualifying_kpi_and_high_risk_fp_produce_two_insights():
 
 def test_mixed_qualifying_and_non_qualifying_kpis():
     """Only kpis with confidence > 0.7 generate insights."""
-    kpis = [FakeKPI("avg_logins", 0.9), FakeKPI("avg_score", 0.5)]
-    app.dependency_overrides[get_db] = override_db(kpis=kpis)
-    resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
+    app.dependency_overrides[get_db] = override_db()
+    with patch(_EXTRACTOR_PATCH) as MockExt:
+        MockExt.return_value.extract_student_state.return_value = make_extraction([
+            make_signal("avg_logins", 0.9),
+            make_signal("avg_score", 0.5),
+        ])
+        resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
     assert resp.json()["generated_count"] == 1
 
 
@@ -266,34 +319,54 @@ def test_generated_count_matches_insights_list_length():
 # ---------------------------------------------------------------------------
 
 def test_insight_has_all_expected_keys():
-    app.dependency_overrides[get_db] = override_db(kpis=[FakeKPI(confidence=0.8)])
-    resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
+    app.dependency_overrides[get_db] = override_db()
+    with patch(_EXTRACTOR_PATCH) as MockExt:
+        MockExt.return_value.extract_student_state.return_value = make_extraction(
+            [make_signal(confidence=0.8)]
+        )
+        resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
     assert set(resp.json()["insights"][0].keys()) == EXPECTED_INSIGHT_KEYS
 
 
 def test_insight_entity_id_is_string():
     """Service casts entity_id to str — must come back as string."""
-    app.dependency_overrides[get_db] = override_db(kpis=[FakeKPI(confidence=0.8)])
-    resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
+    app.dependency_overrides[get_db] = override_db()
+    with patch(_EXTRACTOR_PATCH) as MockExt:
+        MockExt.return_value.extract_student_state.return_value = make_extraction(
+            [make_signal(confidence=0.8)]
+        )
+        resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
     assert isinstance(resp.json()["insights"][0]["entity_id"], str)
 
 
 def test_insight_confidence_is_float():
-    app.dependency_overrides[get_db] = override_db(kpis=[FakeKPI(confidence=0.8)])
-    resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
+    app.dependency_overrides[get_db] = override_db()
+    with patch(_EXTRACTOR_PATCH) as MockExt:
+        MockExt.return_value.extract_student_state.return_value = make_extraction(
+            [make_signal(confidence=0.8)]
+        )
+        resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
     assert isinstance(resp.json()["insights"][0]["confidence"], float)
 
 
 def test_insight_confidence_matches_kpi_confidence():
-    app.dependency_overrides[get_db] = override_db(kpis=[FakeKPI(confidence=0.85)])
-    resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
+    app.dependency_overrides[get_db] = override_db()
+    with patch(_EXTRACTOR_PATCH) as MockExt:
+        MockExt.return_value.extract_student_state.return_value = make_extraction(
+            [make_signal(confidence=0.85)]
+        )
+        resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
     assert resp.json()["insights"][0]["confidence"] == 0.85
 
 
 def test_insight_title_contains_kpi_name():
-    app.dependency_overrides[get_db] = override_db(kpis=[FakeKPI("avg_logins", confidence=0.9)])
-    resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
-    assert "avg_logins" in resp.json()["insights"][0]["title"]
+    app.dependency_overrides[get_db] = override_db()
+    with patch(_EXTRACTOR_PATCH) as MockExt:
+        MockExt.return_value.extract_student_state.return_value = make_extraction(
+            [make_signal("avg_logins", confidence=0.9)]
+        )
+        resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
+    assert "Engagement signal" in resp.json()["insights"][0]["title"]
 
 
 def test_risk_insight_title_contains_pattern_name():
@@ -301,7 +374,7 @@ def test_risk_insight_title_contains_pattern_name():
         fingerprints=[FakeFingerprint(pattern_name="disengagement", risk_level="high")]
     )
     resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
-    assert "disengagement" in resp.json()["insights"][0]["title"]
+    assert "disengagement" in resp.json()["insights"][0]["title"].lower()
 
 
 # ---------------------------------------------------------------------------
@@ -309,9 +382,13 @@ def test_risk_insight_title_contains_pattern_name():
 # ---------------------------------------------------------------------------
 
 def test_analyzed_kpis_reflects_input_count():
-    kpis = [FakeKPI("k1", 0.9), FakeKPI("k2", 0.5)]  # 2 total, only 1 qualifies
-    app.dependency_overrides[get_db] = override_db(kpis=kpis)
-    resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
+    app.dependency_overrides[get_db] = override_db()
+    with patch(_EXTRACTOR_PATCH) as MockExt:
+        MockExt.return_value.extract_student_state.return_value = make_extraction([
+            make_signal("k1", 0.9),
+            make_signal("k2", 0.5),
+        ])
+        resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
     assert resp.json()["analyzed_kpis"] == 2
 
 
@@ -324,16 +401,24 @@ def test_analyzed_fingerprints_reflects_input_count():
 
 def test_insight_ids_are_sequential_starting_at_1():
     """Service assigns ids 1, 2, 3, ... — not DB primary keys."""
-    kpis = [FakeKPI("k1", 0.9), FakeKPI("k2", 0.85)]
-    app.dependency_overrides[get_db] = override_db(kpis=kpis)
-    resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
+    app.dependency_overrides[get_db] = override_db()
+    with patch(_EXTRACTOR_PATCH) as MockExt:
+        MockExt.return_value.extract_student_state.return_value = make_extraction([
+            make_signal("k1", 0.9),
+            make_signal("k2", 0.85),
+        ])
+        resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
     ids = [ins["id"] for ins in resp.json()["insights"]]
     assert ids == [1, 2]
 
 
 def test_insight_id_is_integer():
-    app.dependency_overrides[get_db] = override_db(kpis=[FakeKPI(confidence=0.8)])
-    resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
+    app.dependency_overrides[get_db] = override_db()
+    with patch(_EXTRACTOR_PATCH) as MockExt:
+        MockExt.return_value.extract_student_state.return_value = make_extraction(
+            [make_signal(confidence=0.8)]
+        )
+        resp = client.post("/insight/generate", json={"entity_id": "s1", "entity_type": "student"})
     assert isinstance(resp.json()["insights"][0]["id"], int)
 
 

@@ -4,6 +4,7 @@ import type {
   LatestInterpretationResponse,
   InterpretationHistoryResponse,
   ReuseMetrics,
+  StudentListResponse,
   LoadState,
 } from "../types/sentinel";
 
@@ -87,6 +88,21 @@ export function useReuseMetrics() {
   const load = useCallback(() => {
     setState({ status: "loading" });
     sentinelGet<ReuseMetrics>("/sentinel/analytics/reuse-metrics")
+      .then((data) => setState({ status: "success", data }))
+      .catch((e: unknown) => setState({ status: "error", message: String(e) }));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { state, reload: load };
+}
+
+export function useStudentList() {
+  const [state, setState] = useState<LoadState<StudentListResponse>>({ status: "idle" });
+
+  const load = useCallback(() => {
+    setState({ status: "loading" });
+    sentinelGet<StudentListResponse>("/sentinel/students")
       .then((data) => setState({ status: "success", data }))
       .catch((e: unknown) => setState({ status: "error", message: String(e) }));
   }, []);

@@ -87,6 +87,22 @@ export interface ReuseMetrics {
   source: "db" | "mock";
 }
 
+export interface StudentOption {
+  user_id: string;
+  user_name: string;
+  display_label: string;
+  attendance: number | null;
+  active_status: string | null;
+  last_activity_days: number | null;
+  is_class_active: number | null;
+}
+
+export interface StudentListResponse {
+  students: StudentOption[];
+  total: number;
+  source: "db" | "mock";
+}
+
 export type LoadState<T> =
   | { status: "idle" }
   | { status: "loading" }

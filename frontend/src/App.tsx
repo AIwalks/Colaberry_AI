@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { SentinelDashboard } from "./pages/SentinelDashboard";
+import { useStudentList } from "./hooks/useSentinelData";
 
 // ---------------------------------------------------------------------------
 // Insight Generator (original view — preserved unchanged)
@@ -152,7 +153,20 @@ function InsightGenerator() {
   const [loadingMode, setLoadingMode]   = useState<"standard" | "ai" | null>(null);
   const [filter, setFilter]             = useState<"all" | "kpi" | "risk" | "ai">("all");
   const [error, setError]               = useState<string | null>(null);
-  const [selectedStudentId, setSelectedStudentId] = useState("student_101");
+  const [selectedStudentId, setSelectedStudentId] = useState("");
+
+  const studentListResult = useStudentList();
+  const studentOptions =
+    studentListResult.state.status === "success"
+      ? studentListResult.state.data.students
+      : [];
+
+  // Auto-select the first student once the list loads
+  useEffect(() => {
+    if (!selectedStudentId && studentOptions.length > 0) {
+      setSelectedStudentId(studentOptions[0].user_id);
+    }
+  }, [selectedStudentId, studentOptions]);
 
   const loading = loadingMode !== null;
 
@@ -196,11 +210,20 @@ function InsightGenerator() {
           style={{
             padding: "8px 12px", fontSize: 14, border: "1px solid #d1d5db",
             borderRadius: 6, background: "#fff", color: "#111827",
-            cursor: loading ? "not-allowed" : "pointer", minWidth: 180,
+            cursor: loading ? "not-allowed" : "pointer", minWidth: 220,
           }}
         >
-          <option value="student_101">student_101</option>
-          <option value="student_202">student_202</option>
+          {studentListResult.state.status === "loading" && (
+            <option value="">Loading students…</option>
+          )}
+          {studentListResult.state.status === "error" && (
+            <option value="">Error loading students</option>
+          )}
+          {studentOptions.map((s) => (
+            <option key={s.user_id} value={s.user_id}>
+              {s.display_label} ({s.user_id})
+            </option>
+          ))}
         </select>
       </div>
 
