@@ -10,6 +10,7 @@ from services.models import TriggeredUser, TriggerRule, TriggerData
 from services.trigger_processing_service import TriggerEvaluator
 from services.intervention_outcome_service import InterventionOutcomeService
 from services.recommendation_tracking_service import RecommendationTrackingService
+from services.adaptive_recommendation_service import AdaptiveRecommendationService
 
 
 class MentorMessageService:
@@ -194,13 +195,24 @@ class MentorMessageService:
                 print(f"[WARNING] Outcome enrollment failed for cbm_id={cbm_id}: {enroll_err}")
             try:
                 with SessionLocal() as rec_session:
+                    _fallback_key = (
+                        f"{trigger_type}_{trigger_level}".lower().replace(" ", "_")
+                        if trigger_type and trigger_level else "unknown"
+                    )
+                    recommendation_key = AdaptiveRecommendationService().select_key(
+                        db           = rec_session,
+                        trigger_type = trigger_type or "unknown",
+                        dimension    = trigger_kpi or "general",
+                        risk_level   = trigger_level,
+                        fallback_key = _fallback_key,
+                    )
                     RecommendationTrackingService().record(
                         db                    = rec_session,
                         cbm_id                = cbm_id,
                         interpretation_id     = None,
                         entity_id             = str(user_id) if user_id is not None else "",
                         recommendation_type   = trigger_type or "unknown",
-                        recommendation_key    = f"{trigger_type}_{trigger_level}".lower().replace(" ", "_") if trigger_type and trigger_level else "unknown",
+                        recommendation_key    = recommendation_key,
                         recommendation_text   = message_text,
                         dimension             = trigger_kpi or "general",
                         risk_level            = trigger_level or "unknown",
@@ -255,13 +267,24 @@ class MentorMessageService:
             print(f"[WARNING] Outcome enrollment failed for cbm_id={cbm_id}: {enroll_err}")
         try:
             with SessionLocal() as rec_session:
+                _fallback_key = (
+                    f"{trigger_type}_{trigger_level}".lower().replace(" ", "_")
+                    if trigger_type and trigger_level else "unknown"
+                )
+                recommendation_key = AdaptiveRecommendationService().select_key(
+                    db           = rec_session,
+                    trigger_type = trigger_type or "unknown",
+                    dimension    = trigger_kpi or "general",
+                    risk_level   = trigger_level,
+                    fallback_key = _fallback_key,
+                )
                 RecommendationTrackingService().record(
                     db                    = rec_session,
                     cbm_id                = cbm_id,
                     interpretation_id     = None,
                     entity_id             = str(user_id) if user_id is not None else "",
                     recommendation_type   = trigger_type or "unknown",
-                    recommendation_key    = f"{trigger_type}_{trigger_level}".lower().replace(" ", "_") if trigger_type and trigger_level else "unknown",
+                    recommendation_key    = recommendation_key,
                     recommendation_text   = message_text,
                     dimension             = trigger_kpi or "general",
                     risk_level            = trigger_level or "unknown",

@@ -827,3 +827,102 @@ class Recommendation(Base):
             f"dimension={self.dimension!r} "
             f"is_active={self.is_active}>"
         )
+
+
+# ---------------------------------------------------------------------------
+# 16. RecommendationCandidatePool
+# ---------------------------------------------------------------------------
+
+class RecommendationCandidatePool(Base):
+    """Maps to AI_ChatBot_RecommendationCandidatePools (read + write).
+
+    Governance-controlled configuration table.  One row per trigger context
+    (trigger_type + dimension) defines the ordered candidate pool that
+    AdaptiveRecommendationService draws from when ranking interventions.
+
+    Pool definition
+    ───────────────
+    candidate_keys_json is a JSON array of recommendation_key strings, ordered
+    by the human-preferred default priority.  Example:
+
+        '["attendance_personal_outreach", "attendance_deadline_reminder",
+          "attendance_cohort_comparison"]'
+
+    The adaptive service reads this array as the candidate list passed to
+    RecommendationLearningService.get_ranked_keys().  Historical success rates
+    then reorder the list; the default order is the fallback when no outcome
+    data exists.
+
+    Per-pool overrides
+    ──────────────────
+    min_sample_override — minimum eligible outcomes required before a key enters
+                          the ranked group.  NULL → system default (10).
+    epsilon_override    — exploration probability (0.0–1.0).  NULL → system
+                          default (0.05).  Controls how often the adaptive
+                          service selects randomly rather than top-ranked.
+
+    Uniqueness
+    ──────────
+    The composite unique constraint on (trigger_type, dimension) enforces one
+    active pool definition per trigger context.  To update a pool, UPDATE the
+    existing row; inserting a duplicate will violate the constraint.
+
+    Lifecycle
+    ─────────
+    is_active=False soft-disables the pool.  The adaptive service ignores
+    inactive pools and falls back to unranked single-rule behaviour.  Rows are
+    never deleted — the pool definition history is preserved for audit.
+
+    No ORM relationships are declared.  The service layer joins by trigger_type
+    and dimension via explicit queries, consistent with all other Sentinel models.
+    """
+
+    __tablename__ = "AI_ChatBot_RecommendationCandidatePools"
+
+    __table_args__ = (
+        # One pool definition per trigger context — enforced at the DB level.
+        UniqueConstraint(
+            "trigger_type", "dimension",
+            name="uq_candidate_pools_trigger_dimension",
+        ),
+    )
+
+    id                  = Column(Integer,   primary_key=True, autoincrement=True)
+    created_at          = Column(DateTime,  nullable=False, default=datetime.utcnow)
+    updated_at          = Column(DateTime,  nullable=False, default=datetime.utcnow,
+                                 onupdate=datetime.utcnow)
+
+    # --- Trigger context (composite unique) ----------------------------------
+    trigger_type        = Column(String(50), nullable=False)
+    # Matches AI_ChatBot_TriggeredUsers.TriggerType.
+
+    dimension           = Column(String(50), nullable=False)
+    # Matches AI_ChatBot_Recommendations.dimension.
+
+    # --- Pool definition -----------------------------------------------------
+    candidate_keys_json = Column(Text,      nullable=False)
+    # JSON array of recommendation_key strings in human-preferred default order.
+    # Serialized by the service layer; never store raw text.
+    # Minimum valid value: '[]'
+
+    # --- Per-pool adaptive parameters ----------------------------------------
+    min_sample_override = Column(Integer,   nullable=True)
+    # Minimum eligible outcomes for has_sufficient_sample=True.
+    # NULL → system default (10) in AdaptiveRecommendationService.
+
+    epsilon_override    = Column(Float,     nullable=True)
+    # Exploration probability 0.0–1.0.
+    # NULL → system default (0.05) in AdaptiveRecommendationService.
+
+    # --- Lifecycle -----------------------------------------------------------
+    is_active           = Column(Boolean,   nullable=False, default=True)
+    # False soft-disables the pool.  AdaptiveRecommendationService treats an
+    # inactive pool as absent and falls back to single-rule behaviour.
+
+    def __repr__(self) -> str:
+        return (
+            f"<RecommendationCandidatePool id={self.id} "
+            f"trigger_type={self.trigger_type!r} "
+            f"dimension={self.dimension!r} "
+            f"is_active={self.is_active}>"
+        )

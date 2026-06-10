@@ -530,3 +530,128 @@ class TestRecommendationTrackingTriggered:
                 "recommendation_context must be a dict, not None or a string"
         finally:
             _delete_triggered_user(cbm_id)
+
+
+# ---------------------------------------------------------------------------
+# Adaptive recommendation wiring tests
+# Verify that AdaptiveRecommendationService.select_key() is invoked in both
+# delivery paths and that its return value reaches
+# RecommendationTrackingService.record() as recommendation_key.
+# All tests patch AdaptiveRecommendationService so no pool table or MSSQL
+# is required.
+# ---------------------------------------------------------------------------
+
+
+class TestAdaptiveRecommendationWiring:
+    """select_key() must be invoked on both delivery paths; its return value
+    must reach RecommendationTrackingService.record() as recommendation_key.
+    Failure of select_key() must be fully absorbed — process_trigger() must
+    still return its normal result.
+
+    The test fixture inserts rows with TriggerType="test_delivery_succeeded",
+    TriggerLevel="Low", KPI=None, so the expected select_key() kwargs are:
+      trigger_type = "test_delivery_succeeded"
+      dimension    = "general"          (KPI=None → trigger_kpi or "general")
+      risk_level   = "Low"
+      fallback_key = "test_delivery_succeeded_low"
+                     (f"{trigger_type}_{trigger_level}".lower().replace(" ","_"))
+    """
+
+    def test_select_key_called_on_successful_delivery(self):
+        """select_key() is called once with the correct trigger context when
+        delivery succeeds — the normal happy path.
+        """
+        cbm_id = _insert_triggered_user()
+        try:
+            fake_results = [
+                {"success": True, "channel": "sms", "provider": "twilio",
+                 "provider_id": "SM1", "error": None, "recipient": "+1555"},
+            ]
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=fake_results), \
+                 patch("services.mentor_message_service.AdaptiveRecommendationService") as mock_cls:
+                mock_cls.return_value.select_key.return_value = "adapted_key"
+                from services.mentor_message_service import MentorMessageService
+                result = MentorMessageService().process_trigger(cbm_id)
+
+            assert result.get("cbm_id") == cbm_id
+            mock_cls.return_value.select_key.assert_called_once()
+            kwargs = mock_cls.return_value.select_key.call_args.kwargs
+            assert kwargs["trigger_type"] == "test_delivery_succeeded"
+            assert kwargs["dimension"]    == "general"
+            assert kwargs["risk_level"]   == "Low"
+            assert kwargs["fallback_key"] == "test_delivery_succeeded_low"
+        finally:
+            _delete_triggered_user(cbm_id)
+
+    def test_select_key_called_on_delivery_failed_path(self):
+        """select_key() is called once with the correct trigger context when
+        send_text() raises — the exception/delivery-failed path.
+        """
+        cbm_id = _insert_triggered_user()
+        try:
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       side_effect=RuntimeError("network error")), \
+                 patch("services.mentor_message_service.AdaptiveRecommendationService") as mock_cls:
+                mock_cls.return_value.select_key.return_value = "adapted_key"
+                from services.mentor_message_service import MentorMessageService
+                result = MentorMessageService().process_trigger(cbm_id)
+
+            assert result.get("reason") == "delivery_failed"
+            mock_cls.return_value.select_key.assert_called_once()
+            kwargs = mock_cls.return_value.select_key.call_args.kwargs
+            assert kwargs["trigger_type"] == "test_delivery_succeeded"
+        finally:
+            _delete_triggered_user(cbm_id)
+
+    def test_select_key_failure_does_not_break_process_trigger(self):
+        """If select_key() raises, process_trigger() must still return its
+        normal sent=True result — adaptive selection is a non-fatal side effect.
+        """
+        cbm_id = _insert_triggered_user()
+        try:
+            fake_results = [
+                {"success": True, "channel": "sms", "provider": "twilio",
+                 "provider_id": "SM1", "error": None, "recipient": "+1555"},
+            ]
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=fake_results), \
+                 patch("services.mentor_message_service.AdaptiveRecommendationService") as mock_cls:
+                mock_cls.return_value.select_key.side_effect = RuntimeError("adaptive crash")
+                from services.mentor_message_service import MentorMessageService
+                result = MentorMessageService().process_trigger(cbm_id)
+
+            assert result.get("cbm_id") == cbm_id
+            assert result.get("sent") is True
+        finally:
+            _delete_triggered_user(cbm_id)
+
+    def test_record_receives_key_from_select_key_not_mechanical_formula(self):
+        """recommendation_key passed to record() must be the value returned by
+        select_key(), not the mechanical f"{trigger_type}_{trigger_level}" fallback.
+        """
+        cbm_id = _insert_triggered_user()
+        try:
+            fake_results = [
+                {"success": True, "channel": "sms", "provider": "twilio",
+                 "provider_id": "SM1", "error": None, "recipient": "+1555"},
+            ]
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=fake_results), \
+                 patch("services.mentor_message_service.AdaptiveRecommendationService") as mock_adaptive, \
+                 patch("services.mentor_message_service.RecommendationTrackingService") as mock_tracking:
+                mock_adaptive.return_value.select_key.return_value = "evidence_driven_key"
+                from services.mentor_message_service import MentorMessageService
+                MentorMessageService().process_trigger(cbm_id)
+
+            mock_tracking.return_value.record.assert_called_once()
+            kwargs = mock_tracking.return_value.record.call_args.kwargs
+            assert kwargs["recommendation_key"] == "evidence_driven_key", \
+                "record() must receive the key returned by select_key(), " \
+                "not the mechanical fallback formula"
+        finally:
+            _delete_triggered_user(cbm_id)
