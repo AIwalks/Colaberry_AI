@@ -655,3 +655,167 @@ class TestAdaptiveRecommendationWiring:
                 "not the mechanical fallback formula"
         finally:
             _delete_triggered_user(cbm_id)
+
+
+# ---------------------------------------------------------------------------
+# Governance gate wiring tests
+# Verify that GovernanceGateService.check_delivery_approved() is called before
+# send_text() and that its return value correctly gates delivery.
+# All tests patch GovernanceGateService at its import path in
+# mentor_message_service so no real Sentinel DB is required.
+# ---------------------------------------------------------------------------
+
+
+_GATE_PATCH = "services.mentor_message_service.GovernanceGateService"
+_FAKE_SEND  = [
+    {"success": True, "channel": "sms", "provider": "twilio",
+     "provider_id": "SM1", "error": None, "recipient": "+1555"},
+]
+
+
+class TestGovernanceGateWiring:
+    """GovernanceGateService must be called after the atomic claim and before
+    send_text(). An approved gate must allow delivery; a non-approved gate must
+    block it and return the governance_review_required shape. Gate exceptions
+    must be fail-open. The gate must not be called on the already_claimed or
+    no_db early-exit paths.
+    """
+
+    def test_approved_gate_calls_send_text(self):
+        """Gate returns approved=True (approved_review) → send_text() must be called."""
+        cbm_id = _insert_triggered_user()
+        try:
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=_FAKE_SEND) as mock_send, \
+                 patch(_GATE_PATCH) as mock_gate:
+                mock_gate.return_value.check_delivery_approved.return_value = {
+                    "approved": True, "reason": "approved_review", "review_id": 42,
+                }
+                from services.mentor_message_service import MentorMessageService
+                MentorMessageService().process_trigger(cbm_id)
+
+            assert mock_send.call_count == 1, \
+                "send_text() must be called when gate returns approved=True"
+        finally:
+            _delete_triggered_user(cbm_id)
+
+    def test_pending_gate_does_not_call_send_text(self):
+        """Gate returns approved=False (pending) → send_text() must NOT be called."""
+        cbm_id = _insert_triggered_user()
+        try:
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=_FAKE_SEND) as mock_send, \
+                 patch(_GATE_PATCH) as mock_gate:
+                mock_gate.return_value.check_delivery_approved.return_value = {
+                    "approved": False, "reason": "pending", "review_id": 42,
+                }
+                from services.mentor_message_service import MentorMessageService
+                MentorMessageService().process_trigger(cbm_id)
+
+            assert mock_send.call_count == 0, \
+                "send_text() must NOT be called when gate returns approved=False"
+        finally:
+            _delete_triggered_user(cbm_id)
+
+    def test_pending_gate_returns_governance_review_required_shape(self):
+        """Gate returns approved=False → process_trigger() must return the
+        governance_review_required shape: sent=False, reason=governance_review_required,
+        review_id from the gate result, cbm_id of the trigger.
+        """
+        cbm_id = _insert_triggered_user()
+        try:
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=_FAKE_SEND), \
+                 patch(_GATE_PATCH) as mock_gate:
+                mock_gate.return_value.check_delivery_approved.return_value = {
+                    "approved": False, "reason": "pending", "review_id": 42,
+                }
+                from services.mentor_message_service import MentorMessageService
+                result = MentorMessageService().process_trigger(cbm_id)
+
+            assert result["sent"]      is False
+            assert result["reason"]    == "governance_review_required"
+            assert result["review_id"] == 42
+            assert result["cbm_id"]    == cbm_id
+        finally:
+            _delete_triggered_user(cbm_id)
+
+    def test_no_sentinel_data_gate_calls_send_text(self):
+        """Gate returns no_sentinel_data (approved=True) → send_text() must be called.
+        Legacy students with no Sentinel interpretation must flow through normally.
+        """
+        cbm_id = _insert_triggered_user()
+        try:
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=_FAKE_SEND) as mock_send, \
+                 patch(_GATE_PATCH) as mock_gate:
+                mock_gate.return_value.check_delivery_approved.return_value = {
+                    "approved": True, "reason": "no_sentinel_data", "review_id": None,
+                }
+                from services.mentor_message_service import MentorMessageService
+                MentorMessageService().process_trigger(cbm_id)
+
+            assert mock_send.call_count == 1, \
+                "send_text() must be called for no_sentinel_data (legacy fall-through)"
+        finally:
+            _delete_triggered_user(cbm_id)
+
+    def test_gate_exception_is_fail_open_send_text_called(self):
+        """If check_delivery_approved() raises, process_trigger() must be fail-open:
+        send_text() must still be called. The gate must never drop a message.
+        """
+        cbm_id = _insert_triggered_user()
+        try:
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=_FAKE_SEND) as mock_send, \
+                 patch(_GATE_PATCH) as mock_gate:
+                mock_gate.return_value.check_delivery_approved.side_effect = RuntimeError(
+                    "Sentinel DB unreachable"
+                )
+                from services.mentor_message_service import MentorMessageService
+                MentorMessageService().process_trigger(cbm_id)
+
+            assert mock_send.call_count == 1, \
+                "send_text() must be called when gate raises (fail-open)"
+        finally:
+            _delete_triggered_user(cbm_id)
+
+    def test_gate_not_called_on_already_claimed_path(self):
+        """The already_claimed path exits before delivery — gate must not fire
+        for a trigger that was already processed by another worker.
+        """
+        cbm_id = _insert_triggered_user()
+        try:
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=_FAKE_SEND), \
+                 patch(_GATE_PATCH) as mock_gate:
+                mock_gate.return_value.check_delivery_approved.return_value = {
+                    "approved": True, "reason": "approved_review", "review_id": 1,
+                }
+                from services.mentor_message_service import MentorMessageService
+                svc = MentorMessageService()
+                svc.process_trigger(cbm_id)   # winner — gate fires once
+                svc.process_trigger(cbm_id)   # already_claimed — gate must not fire again
+
+            assert mock_gate.return_value.check_delivery_approved.call_count == 1, \
+                "Gate must be called exactly once; already_claimed path must skip it"
+        finally:
+            _delete_triggered_user(cbm_id)
+
+    def test_gate_not_called_on_no_db_path(self):
+        """MSSQL not configured → process_trigger() returns no_db immediately.
+        Gate must never be called — no Sentinel session should be opened.
+        """
+        with patch("services.mentor_message_service.MSSQL_CONFIGURED", False), \
+             patch(_GATE_PATCH) as mock_gate:
+            from services.mentor_message_service import MentorMessageService
+            result = MentorMessageService().process_trigger(cbm_id=999)
+
+        assert result["reason"] == "no_db"
+        mock_gate.return_value.check_delivery_approved.assert_not_called()

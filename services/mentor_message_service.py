@@ -11,6 +11,7 @@ from services.trigger_processing_service import TriggerEvaluator
 from services.intervention_outcome_service import InterventionOutcomeService
 from services.recommendation_tracking_service import RecommendationTrackingService
 from services.adaptive_recommendation_service import AdaptiveRecommendationService
+from services.governance_gate_service import GovernanceGateService
 
 
 class MentorMessageService:
@@ -154,6 +155,26 @@ class MentorMessageService:
                 )
             except Exception:
                 pass
+
+        # Governance gate — read-only check in a dedicated session.
+        # Runs after the claim is durable, before any outbound delivery.
+        # Fail-open: any exception allows delivery to proceed.
+        try:
+            with SessionLocal() as gate_session:
+                gate_result = GovernanceGateService().check_delivery_approved(
+                    db=gate_session,
+                    entity_id=str(user_id) if user_id is not None else "",
+                    entity_type="student",
+                )
+            if not gate_result.get("approved"):
+                return {
+                    "sent":      False,
+                    "reason":    "governance_review_required",
+                    "review_id": gate_result.get("review_id"),
+                    "cbm_id":    cbm_id,
+                }
+        except Exception as gate_exc:
+            print(f"[WARNING] Governance gate check failed for cbm_id={cbm_id}: {gate_exc}")
 
         # Send AFTER session is closed and commit is durable.
         # If send_text fails, Completed=1 is already in the DB —

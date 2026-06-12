@@ -1,7 +1,7 @@
 # PROGRESS.md
 **Colaberry Sentinel OS — Session Log & System Hardening Tracker**
 
-Last updated: 2026-06-07 (Sprint 7 fully implemented and tested: AdaptiveRecommendationService 30 unit tests + 4 wiring tests in TestAdaptiveRecommendationWiring — 34 passed, 0 failed; directive exists; all Sprint 7 artifacts ready for commit review)
+Last updated: 2026-06-12 (Sprint 8 fully implemented and tested: GovernanceGateService 50 unit tests + 7 wiring tests in TestGovernanceGateWiring — 57 passed, 0 failed; governance gate wired into MentorMessageService; FR-EXEC-001 approval-gated execution active; all Sprint 8 artifacts ready for commit review)
 
 ---
 
@@ -497,7 +497,89 @@ All implementation steps complete. Unit tests passing locally. E2E tests skip wi
 
 ---
 
+## Sprint 8 — Governance Gate: Approval-Gated Delivery
+**Date: 2026-06-12 | Status: UNCOMMITTED — READY FOR COMMIT REVIEW**
+**Status: Implemented + Tested (57 unit tests passing, 0 failed)**
+
+### What Changed (uncommitted)
+
+**`services/governance_gate_service.py`** (new, untracked — 68 lines):
+- `GovernanceGateService.check_delivery_approved(db, entity_id, entity_type="student") → dict`
+- Implements FR-EXEC-001: Approval-Gated Execution from `directives/governance_gate_contract.md`
+- **Step 1** — queries `AIInterpretation` filtered by `entity_id`, `entity_type`, `is_active=True`, ordered by `created_at DESC`, limit 1
+- **Step 2** — queries `GovernanceReview` filtered by `interpretation_id`, ordered by `created_at DESC`, limit 1; Step 2 is never issued when Step 1 returns no row
+- Seven fixed outcomes with deterministic approved/reason/review_id values:
+  - `approved_review` → `approved=True` — human reviewer confirmed the AI assessment; delivery proceeds
+  - `pending` → `approved=False` — review queue not yet worked; delivery blocked
+  - `rejected` → `approved=False` — reviewer disputed the AI interpretation; delivery blocked
+  - `deferred` → `approved=False` — reviewer requested more information; delivery blocked
+  - `no_governance_review` → `approved=False` — interpretation exists but no review row (pipeline fault); delivery blocked; logged at ERROR
+  - `no_sentinel_data` → `approved=True` — no active interpretation; legacy fall-through; delivery proceeds unchanged
+  - `gate_error` → `approved=True` — any unhandled DB exception; fail-open; logged at ERROR
+- Read-only: no `db.commit()`, `db.add()`, `db.rollback()`, or write operations
+- Never raises; always returns `{"approved": bool, "reason": str, "review_id": int | None}`
+- No LLM calls; no heuristic auto-approval; no time-based logic — fully deterministic
+
+**`services/mentor_message_service.py`** — governance gate wired (modified/uncommitted):
+- `from services.governance_gate_service import GovernanceGateService` added to imports
+- Gate check inserted after the atomic `UPDATE Completed=1 RETURNING` claim commits and the main session closes, before `OutboundDeliveryService.send_text()`
+- Gate runs in a dedicated read-only `SessionLocal()` (`gate_session`) — not shared with claim session or write paths
+- `entity_id=str(user_id) if user_id is not None else ""` — caller-side integer-to-string cast as specified by directive Section 4.3
+- If `gate_result["approved"]` is `False`: returns `{"sent": False, "reason": "governance_review_required", "review_id": gate_result.get("review_id"), "cbm_id": cbm_id}` without calling `send_text()`
+- If `gate_result["approved"]` is `True`: existing delivery flow continues unchanged
+- Gate call wrapped in `try/except Exception` — any exception (including mock side_effect) is fail-open; `print([WARNING] ...)` emitted; delivery proceeds
+- Gate is **not** called on: `no_db` early return, `not_found` early return, `already_claimed` early return
+
+**`directives/governance_gate_contract.md`** — pre-existing directive:
+- Fully implemented as specified; no changes required to the directive
+
+### Validation
+
+| File | Tests | Result |
+|---|---|---|
+| `tests/unit/test_governance_gate_service.py` | 50 (7 classes) | **50 passed** (2026-06-12) |
+| `tests/unit/test_mentor_message_trigger.py` → `TestGovernanceGateWiring` | 7 (1 class) | **7 passed** (2026-06-12) |
+| **Sprint 8 unit gate total** | **57** | **57 passed, 0 failed** (1.61 s — 2026-06-12) |
+
+`test_governance_gate_service.py` classes:
+- `TestApprovedPath` (4) — active interpretation + approved review → `approved_review`; `review_id` is integer matching review row
+- `TestBlockedPaths` (9) — pending / rejected / deferred: all `approved=False`; all have integer `review_id`
+- `TestNoGovernanceReview` (3) — active interpretation, no review row → `no_governance_review`; `approved=False`; `review_id=None`
+- `TestNoSentinelData` (4) — no active interpretation → `no_sentinel_data`; `approved=True`; `review_id=None`; Step 2 query never issued
+- `TestNoSentinelDataEdgeCases` (3) — empty string entity_id → `no_sentinel_data`; invalidated-only (mock returns None) → `no_sentinel_data`
+- `TestFailOpen` (6) — DB exception → `gate_error`; `approved=True`; never raises; `logger.error` called with `entity_id`; fail-open semantics
+- `TestReturnContract` (21) — all 7 outcomes return dict; `approved` key always present; `reason` always `str`; `review_id` always `int` or `None`; `approved` is real `bool`
+
+`TestGovernanceGateWiring` (7 tests):
+- `test_approved_gate_calls_send_text` — gate `approved=True` → `send_text()` called once
+- `test_pending_gate_does_not_call_send_text` — gate `approved=False` → `send_text()` call_count == 0
+- `test_pending_gate_returns_governance_review_required_shape` — `sent=False`, `reason="governance_review_required"`, `review_id`, `cbm_id` all present and correct
+- `test_no_sentinel_data_gate_calls_send_text` — `no_sentinel_data` (approved=True) → `send_text()` called (legacy fall-through preserved)
+- `test_gate_exception_is_fail_open_send_text_called` — gate raises → fail-open → `send_text()` called
+- `test_gate_not_called_on_already_claimed_path` — gate called exactly once; `already_claimed` second call skips gate
+- `test_gate_not_called_on_no_db_path` — `MSSQL_CONFIGURED=False` early return; gate never called
+
+### Risks / Limitations
+- All Sprint 8 changes are UNCOMMITTED — 1 untracked file (`governance_gate_service.py`, `test_governance_gate_service.py` already tracked) + 1 modified tracked file (`mentor_message_service.py`, `test_mentor_message_trigger.py` already modified)
+- `governance_gate_contract.md` was pre-existing as an untracked file; it must be staged in the Sprint 8 commit
+- FR-EXEC-001 is **partially** satisfied: gate logic is implemented and wired; governance review workflow (approve/reject/defer via API) existed since Sprint 3 (`GovernanceReviewService`); full end-to-end (reviewer calls API → delivery unblocked) not yet E2E tested
+- Gate uses a new `SessionLocal()` for each trigger — adds one additional DB connection per process_trigger call; no connection pooling concern at current scale
+- `gate_error` fail-open is intentional per directive Section 5: monitoring layer must not become a single point of failure for the production engagement pipeline; this policy requires explicit architectural approval to change
+
+### Maturity
+- `GovernanceGateService` — **Tested** (50 unit tests passing; uncommitted)
+- Governance gate wiring (`mentor_message_service.py`) — **Tested** (7 wiring tests passing; uncommitted)
+- `directives/governance_gate_contract.md` — **Integrated** (pre-existing directive; fully implemented as specified)
+
+---
+
 ## Pending Work
+
+### Immediate (Sprint 8 commit gate — READY)
+- [x] ~~Implement `GovernanceGateService`~~ — **Resolved 2026-06-12**: 68-line service; 7-outcome deterministic contract; read-only; never raises; 50 unit tests passing
+- [x] ~~Write unit tests for `GovernanceGateService`~~ — **Resolved 2026-06-12**: 50 tests in 7 classes covering all 7 outcomes, fail-open, and return contract
+- [x] ~~Wire `GovernanceGateService` into `MentorMessageService`~~ — **Resolved 2026-06-12**: gate inserted after claim commit, before `send_text()`; fail-open; 7 wiring tests in `TestGovernanceGateWiring` passing
+- [ ] Commit Sprint 8 as a single logical changeset (2 untracked files: `governance_gate_service.py`, `governance_gate_contract.md`; 2 modified files: `services/mentor_message_service.py`, `tests/unit/test_mentor_message_trigger.py`; note: `test_governance_gate_service.py` is already untracked — confirm staging)
 
 ### Immediate (Sprint 7 commit gate — READY)
 - [x] ~~Implement `AdaptiveRecommendationService`~~ — **Resolved 2026-06-07**: 152-line service implemented; epsilon-greedy selection; defensive fallback contract; 30 unit tests passing
