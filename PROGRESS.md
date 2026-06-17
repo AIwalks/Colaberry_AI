@@ -1,7 +1,7 @@
 # PROGRESS.md
 **Colaberry Sentinel OS — Session Log & System Hardening Tracker**
 
-Last updated: 2026-06-17 (Sprint 8 completion hardening: governance_gate_contract.md gap analysis resolved (4 fixes), 3 additional wiring tests added to TestGovernanceGateWiring (7→10), targeted Sprint 8 run 81 passed 1 skipped — fully validated and ready for commit)
+Last updated: 2026-06-17 (Sprint 9 complete: 3 governance review action endpoints implemented; 20 new tests in test_governance_review_route.py; combined Sprint 9+8 run 101 passed, 1 skipped)
 
 ---
 
@@ -581,7 +581,70 @@ All implementation steps complete. Unit tests passing locally. E2E tests skip wi
 
 ---
 
+## Sprint 9 — Governance Review Action API
+**Date: 2026-06-17 | Status: Tested — 101 passed, 1 skipped**
+
+Closes the governance loop opened in Sprint 3. `GovernanceReviewService` existed since Sprint 3 and `GovernanceGateService` (Sprint 8) blocked delivery until a review was approved, but there was no supported HTTP path for a reviewer to act on the queue. Sprint 9 adds the three write endpoints that allow reviewers to approve, reject, or defer any `GovernanceReview` row.
+
+### What Changed
+
+**`api/routes/sentinel.py`** — 3 POST routes added:
+- `HTTPException` added to fastapi imports
+- `GovernanceReviewService` imported from `services.governance_review_service`
+- `GovernanceReviewRead`, `GovernanceReviewApprove`, `GovernanceReviewReject`, `GovernanceReviewDefer` imported from `api.schemas.governance_review`
+- `POST /sentinel/governance/reviews/{review_id}/approve` → delegates to `GovernanceReviewService.approve_review()`
+- `POST /sentinel/governance/reviews/{review_id}/reject` → delegates to `GovernanceReviewService.reject_review()`
+- `POST /sentinel/governance/reviews/{review_id}/defer` → delegates to `GovernanceReviewService.defer_review()`
+- All three routes: 503 when `MSSQL_CONFIGURED=False`; 404 on `ValueError("not found")`; 422 on `ValueError("is required")`; 200 + `GovernanceReviewRead` on success
+- `GovernanceReviewService` not modified — route layer contains no business logic
+
+**`tests/unit/test_governance_review_route.py`** (new):
+- 20 tests across 4 classes
+- Auth override via `app.dependency_overrides` autouse fixture; auth tests remove override to exercise real `require_api_key`
+- All tests mock `GovernanceReviewService` at `api.routes.sentinel.GovernanceReviewService` and `MSSQL_CONFIGURED` at `api.routes.sentinel.MSSQL_CONFIGURED` — no real database required
+
+### Validation
+
+| File | Tests | Result |
+|---|---|---|
+| `tests/unit/test_governance_review_route.py` | 20 (4 classes) | **20 passed** (2026-06-17; 2.54 s) |
+| **Combined Sprint 9 + Sprint 8 gate run** | **101 + 1 skip** | **101 passed, 1 skipped** (4.55 s — 2026-06-17; skip = MSSQL integration test, expected) |
+
+`test_governance_review_route.py` classes:
+- `TestApproveEndpoint` (5): happy path → 200 + `status="approved"` with correct kwargs; not-found → 404; empty `reviewed_by` → 422 (Pydantic); `MSSQL_CONFIGURED=False` → 503, service not called; no API key → 403
+- `TestRejectEndpoint` (6): happy path → 200 + `status="rejected"`; not-found → 404; absent `review_notes` → 422 (Pydantic); whitespace-only `review_notes` (service ValueError) → 422; `MSSQL_CONFIGURED=False` → 503; no API key → 403
+- `TestDeferEndpoint` (6): happy path → 200 + `status="deferred"`; not-found → 404; absent `governance_reason` → 422 (Pydantic); whitespace-only `governance_reason` (service ValueError) → 422; `MSSQL_CONFIGURED=False` → 503; no API key → 403
+- `TestAuthGuard` (3): approve / reject / defer — no `X-Api-Key` header → 403 (canonical auth coverage)
+
+### Out of Scope (pre-existing dirty files)
+
+The following files are modified but are **not** part of Sprint 9 and must not be staged in the Sprint 9 commit:
+
+| File | Status | Reason |
+|---|---|---|
+| `api/schemas/insight.py` | `M` (unstaged) | Pre-existing dirty file from earlier session; Sprint 9 did not touch it |
+| `services/mentor_message_service.py` | `M` (unstaged) | Contains Sprint 7 + Sprint 8 wiring; belongs to those sprint commits, not Sprint 9 |
+
+### Risks / Limitations
+- All Sprint 9 changes are UNCOMMITTED — 1 modified tracked file (`api/routes/sentinel.py`) + 1 untracked file (`tests/unit/test_governance_review_route.py`) + 1 untracked directive (`directives/governance_review_api_contract.md`)
+- Full governance loop (reviewer calls API → gate rechecks → delivery proceeds) is not E2E tested end-to-end; unit test coverage validates each layer independently
+- `GovernanceReviewService` allows re-application of decisions (approve → reject → approve); the route layer intentionally does not guard against this — per directive Section 8
+
+### Maturity
+- `POST /sentinel/governance/reviews/{id}/approve` — **Tested**
+- `POST /sentinel/governance/reviews/{id}/reject` — **Tested**
+- `POST /sentinel/governance/reviews/{id}/defer` — **Tested**
+- `tests/unit/test_governance_review_route.py` — **Verified** (20 tests, 0 failures)
+- `directives/governance_review_api_contract.md` — **Verified** (pre-existing; all DoD items satisfied)
+
+---
+
 ## Pending Work
+
+### Immediate (Sprint 9 commit gate — READY)
+- [x] ~~Implement 3 governance review action endpoints~~ — **Resolved 2026-06-17**: `approve_review`, `reject_review`, `defer_review` in `api/routes/sentinel.py`; all delegate to `GovernanceReviewService`; correct 503/404/422/200 handling
+- [x] ~~Write unit tests for governance review action endpoints~~ — **Resolved 2026-06-17**: 20 tests in 4 classes in `tests/unit/test_governance_review_route.py`; 101 passed, 1 skipped in combined gate run
+- [ ] Commit Sprint 9 as a single logical changeset — files to stage: `api/routes/sentinel.py` (modified), `tests/unit/test_governance_review_route.py` (untracked), `directives/governance_review_api_contract.md` (untracked). **Do NOT stage**: `api/schemas/insight.py`, `services/mentor_message_service.py` (pre-existing dirty files outside Sprint 9 scope)
 
 ### Immediate (Sprint 8 commit gate — READY)
 - [x] ~~Implement `GovernanceGateService`~~ — **Resolved 2026-06-12**: 68-line service; 7-outcome deterministic contract; read-only; never raises; 50 unit tests passing

@@ -20,7 +20,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Generator, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import case
 from sqlalchemy.orm import Session
@@ -28,6 +28,13 @@ from sqlalchemy.orm import Session
 from config.database import MSSQL_CONFIGURED, SessionLocal
 from services.models import AIInterpretation, GovernanceReview, GovernanceReviewStatus, TriggerData
 from services.sentinel_orchestration_service import SentinelOrchestrationService
+from services.governance_review_service import GovernanceReviewService
+from api.schemas.governance_review import (
+    GovernanceReviewRead,
+    GovernanceReviewApprove,
+    GovernanceReviewReject,
+    GovernanceReviewDefer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -328,6 +335,79 @@ def get_pending_reviews(
         .all()
     )
     return {"reviews": [_serialize_review(r) for r in rows], "total": len(rows), "source": "db"}
+
+
+# ---------------------------------------------------------------------------
+# Governance action endpoints (approve / reject / defer)
+# ---------------------------------------------------------------------------
+
+@router.post("/governance/reviews/{review_id}/approve")
+def approve_review(
+    review_id: int,
+    body: GovernanceReviewApprove,
+) -> GovernanceReviewRead:
+    if not MSSQL_CONFIGURED:
+        raise HTTPException(status_code=503, detail="no_db")
+    with SessionLocal() as db:
+        try:
+            review = GovernanceReviewService().approve_review(
+                db,
+                review_id=review_id,
+                reviewed_by=body.reviewed_by,
+                review_notes=body.review_notes,
+            )
+        except ValueError as exc:
+            msg = str(exc)
+            if "not found" in msg:
+                raise HTTPException(status_code=404, detail=msg)
+            raise HTTPException(status_code=422, detail=msg)
+        return GovernanceReviewRead.model_validate(review)
+
+
+@router.post("/governance/reviews/{review_id}/reject")
+def reject_review(
+    review_id: int,
+    body: GovernanceReviewReject,
+) -> GovernanceReviewRead:
+    if not MSSQL_CONFIGURED:
+        raise HTTPException(status_code=503, detail="no_db")
+    with SessionLocal() as db:
+        try:
+            review = GovernanceReviewService().reject_review(
+                db,
+                review_id=review_id,
+                reviewed_by=body.reviewed_by,
+                review_notes=body.review_notes,
+            )
+        except ValueError as exc:
+            msg = str(exc)
+            if "not found" in msg:
+                raise HTTPException(status_code=404, detail=msg)
+            raise HTTPException(status_code=422, detail=msg)
+        return GovernanceReviewRead.model_validate(review)
+
+
+@router.post("/governance/reviews/{review_id}/defer")
+def defer_review(
+    review_id: int,
+    body: GovernanceReviewDefer,
+) -> GovernanceReviewRead:
+    if not MSSQL_CONFIGURED:
+        raise HTTPException(status_code=503, detail="no_db")
+    with SessionLocal() as db:
+        try:
+            review = GovernanceReviewService().defer_review(
+                db,
+                review_id=review_id,
+                reviewed_by=body.reviewed_by,
+                governance_reason=body.governance_reason,
+            )
+        except ValueError as exc:
+            msg = str(exc)
+            if "not found" in msg:
+                raise HTTPException(status_code=404, detail=msg)
+            raise HTTPException(status_code=422, detail=msg)
+        return GovernanceReviewRead.model_validate(review)
 
 
 # ---------------------------------------------------------------------------
