@@ -257,6 +257,7 @@ class EngagementEvent(Base):
     message:    Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     agent_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     trigger_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    thread_id:  Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     def __repr__(self) -> str:

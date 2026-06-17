@@ -66,6 +66,7 @@ class MentorMessageService:
                 message=body.message,
                 agent_name="MentorMessageService",
                 trigger_id=None,
+                thread_id=getattr(body, "thread_id", None),
             )
         except Exception:
             pass

@@ -26,6 +26,7 @@ class EngagementTrackerService:
         message:    str | None,
         agent_name: str | None,
         trigger_id: int | None = None,
+        thread_id:  str | None = None,
     ) -> int:
         """Insert one engagement event and return its primary key.
 
@@ -60,6 +61,7 @@ class EngagementTrackerService:
             message    = message,
             agent_name = agent_name,
             trigger_id = trigger_id,
+            thread_id  = thread_id,
             created_at = datetime.utcnow(),
         )
 

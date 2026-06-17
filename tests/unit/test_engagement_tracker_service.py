@@ -35,6 +35,63 @@ def test_raises_runtime_error_when_session_local_is_none(monkeypatch):
         )
 
 
+def test_thread_id_is_stored_when_supplied(monkeypatch):
+    """thread_id supplied → EngagementEvent created with that thread_id value."""
+    from unittest.mock import MagicMock
+    import services.engagement_tracker_service as module
+
+    captured = {}
+
+    mock_session = MagicMock()
+    mock_session.__enter__ = MagicMock(return_value=mock_session)
+    mock_session.__exit__ = MagicMock(return_value=False)
+    mock_session.add.side_effect = lambda obj: captured.update({"event": obj})
+    mock_session.refresh.side_effect = lambda obj: setattr(obj, "id", 1)
+
+    monkeypatch.setattr(module, "SessionLocal", MagicMock(return_value=mock_session))
+
+    from services.engagement_tracker_service import EngagementTrackerService
+
+    EngagementTrackerService().log_event(
+        user_id    = None,
+        event_type = "incoming_message",
+        channel    = "whatsapp",
+        message    = "test",
+        agent_name = "TestAgent",
+        thread_id  = "thread-abc-123",
+    )
+
+    assert captured["event"].thread_id == "thread-abc-123"
+
+
+def test_thread_id_defaults_to_none_when_omitted(monkeypatch):
+    """thread_id omitted → EngagementEvent created with thread_id=None."""
+    from unittest.mock import MagicMock
+    import services.engagement_tracker_service as module
+
+    captured = {}
+
+    mock_session = MagicMock()
+    mock_session.__enter__ = MagicMock(return_value=mock_session)
+    mock_session.__exit__ = MagicMock(return_value=False)
+    mock_session.add.side_effect = lambda obj: captured.update({"event": obj})
+    mock_session.refresh.side_effect = lambda obj: setattr(obj, "id", 2)
+
+    monkeypatch.setattr(module, "SessionLocal", MagicMock(return_value=mock_session))
+
+    from services.engagement_tracker_service import EngagementTrackerService
+
+    EngagementTrackerService().log_event(
+        user_id    = None,
+        event_type = "incoming_message",
+        channel    = "sms",
+        message    = "test",
+        agent_name = "TestAgent",
+    )
+
+    assert captured["event"].thread_id is None
+
+
 # ---------------------------------------------------------------------------
 # Integration tests — skipped when DB is not configured
 # ---------------------------------------------------------------------------
