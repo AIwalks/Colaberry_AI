@@ -1,7 +1,7 @@
 # PROGRESS.md
 **Colaberry Sentinel OS — Session Log & System Hardening Tracker**
 
-Last updated: 2026-06-12 (Sprint 8 fully implemented and tested: GovernanceGateService 50 unit tests + 7 wiring tests in TestGovernanceGateWiring — 57 passed, 0 failed; governance gate wired into MentorMessageService; FR-EXEC-001 approval-gated execution active; all Sprint 8 artifacts ready for commit review)
+Last updated: 2026-06-17 (Sprint 8 completion hardening: governance_gate_contract.md gap analysis resolved (4 fixes), 3 additional wiring tests added to TestGovernanceGateWiring (7→10), targeted Sprint 8 run 81 passed 1 skipped — fully validated and ready for commit)
 
 ---
 
@@ -498,8 +498,8 @@ All implementation steps complete. Unit tests passing locally. E2E tests skip wi
 ---
 
 ## Sprint 8 — Governance Gate: Approval-Gated Delivery
-**Date: 2026-06-12 | Status: UNCOMMITTED — READY FOR COMMIT REVIEW**
-**Status: Implemented + Tested (57 unit tests passing, 0 failed)**
+**Date: 2026-06-12 (implementation) | 2026-06-17 (directive hardening + wiring test completion)**
+**Status: Tested — 81 passed, 1 skipped (targeted Sprint 8 gate run 2026-06-17)**
 
 ### What Changed (uncommitted)
 
@@ -530,16 +530,21 @@ All implementation steps complete. Unit tests passing locally. E2E tests skip wi
 - Gate call wrapped in `try/except Exception` — any exception (including mock side_effect) is fail-open; `print([WARNING] ...)` emitted; delivery proceeds
 - Gate is **not** called on: `no_db` early return, `not_found` early return, `already_claimed` early return
 
-**`directives/governance_gate_contract.md`** — pre-existing directive:
-- Fully implemented as specified; no changes required to the directive
+**`directives/governance_gate_contract.md`** — directive hardened (2026-06-17):
+- Gap analysis completed — 4 items resolved:
+  1. Section 9 wiring table was missing required tests for `no_db` and `not_found` early-exit gate skips (only `already_claimed` was covered); both added
+  2. Section 9 and Section 10 DoD were misaligned on `gate_error` coverage — DoD required testing the internal `gate_error` return value; Section 9 table only listed an outer-exception test; now distinct required entries; outer-exception test labelled supplementary/optional
+  3. Section 7 blocked return shape (`"governance_review_required"`) lacked rationale for normalization; paragraph added explaining why granular gate reason is not passed through to the caller
+  4. Section 9 / Section 10 naming confusion — DoD referenced phantom class `TestGovernanceGateService` instead of the file `tests/unit/test_governance_gate_service.py`; Section 9 coverage group column renamed; both corrected
 
 ### Validation
 
 | File | Tests | Result |
 |---|---|---|
 | `tests/unit/test_governance_gate_service.py` | 50 (7 classes) | **50 passed** (2026-06-12) |
-| `tests/unit/test_mentor_message_trigger.py` → `TestGovernanceGateWiring` | 7 (1 class) | **7 passed** (2026-06-12) |
-| **Sprint 8 unit gate total** | **57** | **57 passed, 0 failed** (1.61 s — 2026-06-12) |
+| `tests/unit/test_mentor_message_trigger.py` → `TestGovernanceGateWiring` | 10 (1 class) | **10 passed** (2026-06-17; 3 tests added: `gate_error` return path, `not_found` skip, `entity_id` str cast) |
+| **Sprint 8 governance gate total** | **60** | **60 passed, 0 failed** |
+| **Targeted Sprint 8 run** (both files combined) | **81 + 1 skip** | **81 passed, 1 skipped** (3.08 s — 2026-06-17; skip = MSSQL integration test, expected in local env) |
 
 `test_governance_gate_service.py` classes:
 - `TestApprovedPath` (4) — active interpretation + approved review → `approved_review`; `review_id` is integer matching review row
@@ -558,6 +563,9 @@ All implementation steps complete. Unit tests passing locally. E2E tests skip wi
 - `test_gate_exception_is_fail_open_send_text_called` — gate raises → fail-open → `send_text()` called
 - `test_gate_not_called_on_already_claimed_path` — gate called exactly once; `already_claimed` second call skips gate
 - `test_gate_not_called_on_no_db_path` — `MSSQL_CONFIGURED=False` early return; gate never called
+- `test_gate_error_outcome_calls_send_text` — gate service returns `{"approved": True, "reason": "gate_error", "review_id": None}`; `send_text()` called once; internal fail-open return path distinct from outer exception guard
+- `test_gate_not_called_on_not_found_path` — `MSSQL_CONFIGURED=True`, `cbm_id=999999` absent from DB; returns `not_found`; gate never called
+- `test_gate_called_with_string_entity_id_when_user_id_is_integer` — `UserID=101` integer; gate receives `entity_id="101"` as `str`; verifies `str(user_id)` cast in `process_trigger()`
 
 ### Risks / Limitations
 - All Sprint 8 changes are UNCOMMITTED — 1 untracked file (`governance_gate_service.py`, `test_governance_gate_service.py` already tracked) + 1 modified tracked file (`mentor_message_service.py`, `test_mentor_message_trigger.py` already modified)
@@ -568,8 +576,8 @@ All implementation steps complete. Unit tests passing locally. E2E tests skip wi
 
 ### Maturity
 - `GovernanceGateService` — **Tested** (50 unit tests passing; uncommitted)
-- Governance gate wiring (`mentor_message_service.py`) — **Tested** (7 wiring tests passing; uncommitted)
-- `directives/governance_gate_contract.md` — **Integrated** (pre-existing directive; fully implemented as specified)
+- Governance gate wiring (`mentor_message_service.py`) — **Tested** (10 wiring tests passing; uncommitted)
+- `directives/governance_gate_contract.md` — **Verified** (4 directive gaps resolved 2026-06-17: missing test requirements for no_db/not_found skip paths, gate_error/exception alignment, normalization rationale added, naming clarity fixed)
 
 ---
 
@@ -579,7 +587,7 @@ All implementation steps complete. Unit tests passing locally. E2E tests skip wi
 - [x] ~~Implement `GovernanceGateService`~~ — **Resolved 2026-06-12**: 68-line service; 7-outcome deterministic contract; read-only; never raises; 50 unit tests passing
 - [x] ~~Write unit tests for `GovernanceGateService`~~ — **Resolved 2026-06-12**: 50 tests in 7 classes covering all 7 outcomes, fail-open, and return contract
 - [x] ~~Wire `GovernanceGateService` into `MentorMessageService`~~ — **Resolved 2026-06-12**: gate inserted after claim commit, before `send_text()`; fail-open; 7 wiring tests in `TestGovernanceGateWiring` passing
-- [ ] Commit Sprint 8 as a single logical changeset (2 untracked files: `governance_gate_service.py`, `governance_gate_contract.md`; 2 modified files: `services/mentor_message_service.py`, `tests/unit/test_mentor_message_trigger.py`; note: `test_governance_gate_service.py` is already untracked — confirm staging)
+- [ ] Commit Sprint 8 as a single logical changeset — 81 passed, 1 skipped; files to stage: `services/governance_gate_service.py` (new), `tests/unit/test_governance_gate_service.py` (new), `directives/governance_gate_contract.md` (modified), `services/mentor_message_service.py` (modified), `tests/unit/test_mentor_message_trigger.py` (modified)
 
 ### Immediate (Sprint 7 commit gate — READY)
 - [x] ~~Implement `AdaptiveRecommendationService`~~ — **Resolved 2026-06-07**: 152-line service implemented; epsilon-greedy selection; defensive fallback contract; 30 unit tests passing

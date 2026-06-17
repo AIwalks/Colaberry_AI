@@ -380,6 +380,9 @@ INFO GovernanceGate: delivery blocked for entity_id='101' cbm_id=1701
      reason=pending review_id=42
 ```
 
+**Why `"governance_review_required"` rather than the granular gate reason:**
+The caller-facing `reason` is intentionally normalized to `"governance_review_required"` for all `approved=False` outcomes, regardless of whether the gate returned `pending`, `rejected`, `deferred`, or `no_governance_review`. This prevents governance state from leaking through the delivery API's response shape — callers should know a delivery was blocked by governance, not which governance condition caused the block. The granular gate reason is preserved in the INFO-level audit log above, and the `review_id` in the return dict provides direct access to the review record for diagnostic and remediation purposes.
+
 ### When delivery is allowed
 
 `send_text()` is called normally when:
@@ -461,7 +464,9 @@ independently of the actual human review decision.
 All 7 outcomes must have explicit test coverage. No outcome may be left
 untested. Tests must use mocked DB sessions — no MSSQL or SQLite required.
 
-| Required test class | Coverage |
+The names below describe required coverage groups. They are not a mandatory class hierarchy — implementations may organize tests differently as long as all listed coverage is present.
+
+| Required coverage group | Coverage |
 |---|---|
 | `TestApprovedPath` | Active interpretation + approved review → `approved_review`; `review_id` present in return value |
 | `TestBlockedPaths` | Active interpretation + pending review → `pending`; active + rejected → `rejected`; active + deferred → `deferred` |
@@ -482,9 +487,13 @@ A `TestGovernanceGateWiring` class must be added after
 | Gate returns `pending` → `send_text()` is NOT called | Delivery blocked on pending |
 | Gate returns `pending` → `process_trigger()` returns `reason="governance_review_required"` | Correct return shape on block |
 | Gate returns `no_sentinel_data` → `send_text()` IS called | Legacy fall-through preserved |
-| Gate raises exception → `send_text()` IS called | Fail-open: gate error does not drop message |
-| `already_claimed` path → gate is NOT called | Gate only called when delivery is intended |
+| Gate returns `gate_error` (`approved=True`, `reason="gate_error"`, `review_id=None`) → `send_text()` IS called | Gate-level fail-open: gate service absorbs infrastructure error and allows delivery |
+| `no_db` early-return path → `GovernanceGateService` is NOT called | Gate is only reached when MSSQL is configured |
+| `not_found` path → `GovernanceGateService` is NOT called | Gate is only reached when a TriggeredUser row exists |
+| `already_claimed` path → `GovernanceGateService` is NOT called | Gate is only called when this worker claimed the row |
 | Gate called with `str(user_id)` when `user_id` is an integer | entity_id cast verified |
+
+**Supplementary coverage (optional — not a substitute for the `gate_error` row above):** A test may additionally patch `check_delivery_approved` to raise an unhandled exception, verifying that `process_trigger()`'s outer caller-side guard allows delivery to proceed. This tests a distinct failure mode — an exception escaping the gate service entirely (e.g., from session setup before `check_delivery_approved` is entered) — and does not exercise the `gate_error` return path inside `GovernanceGateService`. The two tests cover different layers of the fail-open stack.
 
 All wiring tests must patch `GovernanceGateService` at its import path in
 `mentor_message_service`. Tests must use local SQLite — no MSSQL required.
@@ -506,14 +515,15 @@ A Sprint 8 implementation is not complete until all of the following are true:
 
 - [ ] `services/governance_gate_service.py` exists and implements the 7-outcome
   contract from Section 3
-- [ ] All unit tests in `TestGovernanceGateService` (Section 9) pass — 0 failures
-- [ ] All wiring tests in `TestGovernanceGateWiring` (Section 9) pass — 0 failures
+- [ ] All unit tests in `tests/unit/test_governance_gate_service.py` (Section 9) pass — 0 failures
+- [ ] All wiring tests in `TestGovernanceGateWiring` in `tests/unit/test_mentor_message_trigger.py` (Section 9) pass — 0 failures
 - [ ] `send_text()` is demonstrably not called when gate returns `approved=False`
   (verified by `assert mock_send.call_count == 0`)
-- [ ] `send_text()` is demonstrably called when gate returns `gate_error`
-  (verified by `assert mock_send.call_count == 1`)
+- [ ] `send_text()` is demonstrably called when gate service returns `{"approved": True, "reason": "gate_error", "review_id": None}` — verified by the `gate_error` wiring test in `TestGovernanceGateWiring` (`assert mock_send.call_count == 1`)
 - [ ] `no_sentinel_data` fall-through verified: student with no interpretation
   produces a normal delivery (not blocked)
+- [ ] `no_db` gate skip verified: `GovernanceGateService` is not called when `MSSQL_CONFIGURED` is `False`
+- [ ] `not_found` gate skip verified: `GovernanceGateService` is not called when the `TriggeredUser` row does not exist
 - [ ] `gate_error` logs at ERROR level — verified in unit test
 - [ ] No production service files (excluding `mentor_message_service.py`) are
   modified

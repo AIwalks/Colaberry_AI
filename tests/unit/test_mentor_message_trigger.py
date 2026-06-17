@@ -819,3 +819,81 @@ class TestGovernanceGateWiring:
 
         assert result["reason"] == "no_db"
         mock_gate.return_value.check_delivery_approved.assert_not_called()
+
+    def test_gate_error_outcome_calls_send_text(self):
+        """Gate service returns {"approved": True, "reason": "gate_error", "review_id": None}
+        — this is the gate-internal fail-open outcome, distinct from check_delivery_approved
+        raising an exception. send_text() must still be called exactly once.
+        """
+        cbm_id = _insert_triggered_user()
+        try:
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=_FAKE_SEND) as mock_send, \
+                 patch(_GATE_PATCH) as mock_gate:
+                mock_gate.return_value.check_delivery_approved.return_value = {
+                    "approved": True, "reason": "gate_error", "review_id": None,
+                }
+                from services.mentor_message_service import MentorMessageService
+                MentorMessageService().process_trigger(cbm_id)
+
+            assert mock_send.call_count == 1, (
+                "send_text() must be called when gate returns gate_error (approved=True) — "
+                "gate-level infrastructure failure must not drop the message"
+            )
+        finally:
+            _delete_triggered_user(cbm_id)
+
+    def test_gate_not_called_on_not_found_path(self):
+        """TriggeredUser row does not exist → process_trigger() returns not_found immediately.
+        Gate must never be called — the row was not claimed so no delivery is intended.
+        """
+        with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+             patch(_GATE_PATCH) as mock_gate:
+            from services.mentor_message_service import MentorMessageService
+            result = MentorMessageService().process_trigger(cbm_id=999999)
+
+        assert result["reason"] == "not_found"
+        mock_gate.return_value.check_delivery_approved.assert_not_called()
+
+    def test_gate_called_with_string_entity_id_when_user_id_is_integer(self):
+        """TriggeredUser.UserID is an Integer column. process_trigger() must cast it
+        to str before passing to check_delivery_approved() — AIInterpretation.entity_id
+        is String(100) and the two must match. Verifies the str(user_id) cast.
+        """
+        from config.database import SessionLocal
+        from services.models import TriggeredUser
+
+        with SessionLocal() as session:
+            row = TriggeredUser(
+                CB_ID=None, UserID=101, TriggerType="test_delivery_succeeded",
+                TriggerLevel="Low", KPI=None, Severity=None,
+                InsertDate=datetime.utcnow(), Completed=0, AgentID=None,
+            )
+            session.add(row)
+            session.commit()
+            session.refresh(row)
+            cbm_id = row.CBM_ID
+
+        try:
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=_FAKE_SEND), \
+                 patch(_GATE_PATCH) as mock_gate:
+                mock_gate.return_value.check_delivery_approved.return_value = {
+                    "approved": True, "reason": "approved_review", "review_id": 1,
+                }
+                from services.mentor_message_service import MentorMessageService
+                MentorMessageService().process_trigger(cbm_id)
+
+            mock_gate.return_value.check_delivery_approved.assert_called_once()
+            call_kwargs = mock_gate.return_value.check_delivery_approved.call_args.kwargs
+            assert call_kwargs["entity_id"] == "101", (
+                f"entity_id must be str '101', got {call_kwargs['entity_id']!r} — "
+                "process_trigger() must cast integer UserID to str before calling the gate"
+            )
+            assert isinstance(call_kwargs["entity_id"], str), (
+                "entity_id must be a str, not an int — AIInterpretation.entity_id is String(100)"
+            )
+        finally:
+            _delete_triggered_user(cbm_id)
