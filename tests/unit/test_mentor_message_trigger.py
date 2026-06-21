@@ -897,3 +897,154 @@ class TestGovernanceGateWiring:
             )
         finally:
             _delete_triggered_user(cbm_id)
+
+
+# ---------------------------------------------------------------------------
+# Delivery suppression helpers
+# ---------------------------------------------------------------------------
+
+def _ensure_student_responses_table() -> None:
+    """Create AI_ChatBot_StudentResponses in the local SQLite DB if absent."""
+    from config.database import engine
+    from services.models import StudentResponse
+    StudentResponse.__table__.create(engine, checkfirst=True)
+
+
+def _insert_student_response(cbm_id: int, confidence: float) -> int:
+    """Insert a minimal StudentResponse row and return its id."""
+    from datetime import datetime
+    from config.database import SessionLocal
+    from services.models import StudentResponse
+    _ensure_student_responses_table()
+    with SessionLocal() as session:
+        row = StudentResponse(
+            cbm_id              = cbm_id,
+            engagement_event_id = 9999,
+            user_id             = 1,
+            response_channel    = "sms",
+            match_method        = "thread_id",
+            confidence          = confidence,
+            matched_at          = datetime.utcnow(),
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return row.id
+
+
+def _delete_student_response(row_id: int) -> None:
+    from config.database import SessionLocal
+    from services.models import StudentResponse
+    with SessionLocal() as session:
+        row = session.get(StudentResponse, row_id)
+        if row is not None:
+            session.delete(row)
+            session.commit()
+
+
+# ---------------------------------------------------------------------------
+# Delivery suppression tests (directive §12 / §3 / §6)
+# ---------------------------------------------------------------------------
+
+_FAKE_SEND_OK = [
+    {"success": True, "channel": "sms", "provider": "twilio",
+     "provider_id": "SM_SUPP", "error": None, "recipient": "+1555"},
+]
+
+
+class TestDeliverySuppression:
+    """process_trigger() must suppress delivery only when a StudentResponse row
+    exists for the exact cbm_id with confidence=1.0.
+
+    Suppression occurs after the atomic claim and before the governance gate
+    (directive §12 — delivery suppression reads only confidence=1.0 associations).
+    """
+
+    def test_confidence_1_suppresses_delivery_and_send_text_not_called(self):
+        """StudentResponse.confidence=1.0 for this cbm_id → sent=False, reason=student_already_responded,
+        send_text() not called.
+        """
+        cbm_id = _insert_triggered_user()
+        sr_id  = _insert_student_response(cbm_id, confidence=1.0)
+        try:
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=_FAKE_SEND_OK) as mock_send:
+                from services.mentor_message_service import MentorMessageService
+                result = MentorMessageService().process_trigger(cbm_id)
+
+            assert result == {"sent": False, "reason": "student_already_responded", "cbm_id": cbm_id}, \
+                f"Expected suppression result, got {result}"
+            assert mock_send.call_count == 0, \
+                "send_text() must not be called when delivery is suppressed"
+        finally:
+            _delete_student_response(sr_id)
+            _delete_triggered_user(cbm_id)
+
+    def test_confidence_below_1_does_not_suppress_and_send_text_called(self):
+        """StudentResponse.confidence<1.0 (heuristic) → delivery proceeds; send_text() is called.
+        Low-confidence matches must never affect delivery decisions (directive §3, §6).
+        """
+        cbm_id = _insert_triggered_user()
+        sr_id  = _insert_student_response(cbm_id, confidence=0.7)
+        try:
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=_FAKE_SEND_OK) as mock_send:
+                from services.mentor_message_service import MentorMessageService
+                MentorMessageService().process_trigger(cbm_id)
+
+            assert mock_send.call_count == 1, \
+                "send_text() must be called when only a heuristic (confidence<1.0) row exists"
+        finally:
+            _delete_student_response(sr_id)
+            _delete_triggered_user(cbm_id)
+
+    def test_no_student_response_does_not_suppress_and_send_text_called(self):
+        """No StudentResponse row for this cbm_id → delivery proceeds normally."""
+        cbm_id = _insert_triggered_user()
+        _ensure_student_responses_table()
+        try:
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=_FAKE_SEND_OK) as mock_send:
+                from services.mentor_message_service import MentorMessageService
+                MentorMessageService().process_trigger(cbm_id)
+
+            assert mock_send.call_count == 1, \
+                "send_text() must be called when no StudentResponse exists for this cbm_id"
+        finally:
+            _delete_triggered_user(cbm_id)
+
+    def test_suppression_query_error_fails_open_and_send_text_called(self):
+        """If the suppression query raises, delivery must proceed — fail-open.
+        SessionLocal call 2 (suppression) is made to raise; calls 1 and 3+
+        use the real session so the claim and write-back succeed normally.
+        """
+        cbm_id = _insert_triggered_user()
+        try:
+            import services.mentor_message_service as svc_module
+            original_sl  = svc_module.SessionLocal
+            call_count   = {"n": 0}
+
+            class _FailOnSecondCall:
+                def __call__(self):
+                    call_count["n"] += 1
+                    if call_count["n"] == 2:
+                        raise RuntimeError("simulated suppression query failure")
+                    return original_sl()
+
+            with patch("services.mentor_message_service.MSSQL_CONFIGURED", True), \
+                 patch("services.mentor_message_service.OutboundDeliveryService.send_text",
+                       return_value=_FAKE_SEND_OK) as mock_send:
+                svc_module.SessionLocal = _FailOnSecondCall()
+                try:
+                    from services.mentor_message_service import MentorMessageService
+                    MentorMessageService().process_trigger(cbm_id)
+                finally:
+                    svc_module.SessionLocal = original_sl
+
+            assert mock_send.call_count == 1, \
+                "send_text() must be called when suppression query raises (fail-open)"
+        finally:
+            _delete_triggered_user(cbm_id)

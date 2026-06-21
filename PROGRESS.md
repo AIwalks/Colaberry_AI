@@ -1,7 +1,7 @@
 # PROGRESS.md
 **Colaberry Sentinel OS — Session Log & System Hardening Tracker**
 
-Last updated: 2026-06-17 (Sprint 9 complete: 3 governance review action endpoints implemented; 20 new tests in test_governance_review_route.py; combined Sprint 9+8 run 101 passed, 1 skipped)
+Last updated: 2026-06-21 (Sprint 10 complete: Student Response Tracking pipeline implemented end-to-end; 72 passed, 3 skipped)
 
 ---
 
@@ -639,7 +639,115 @@ The following files are modified but are **not** part of Sprint 9 and must not b
 
 ---
 
+## Sprint 10 — Student Response Tracking
+**Date: 2026-06-21 | Status: Tested — 72 passed, 3 skipped**
+
+Closes the response attribution gap opened by Sprint 1 (outbound delivery). Before Sprint 10, the system could send triggers and record delivery outcomes but had no mechanism to detect when a student replied. Sprint 10 adds the full pipeline: outbound thread anchoring, inbound user_id persistence, two matching strategies, idempotent persistence with AuditLog traceability, a background worker, and delivery suppression gated on confidence=1.0 rows only.
+
+### What Changed
+
+**`directives/student_response_tracking_contract.md`** (new, then updated):
+- 411-line directive: purpose, architecture, matching methods (thread_id, time_proximity, manual), confidence scoring, data integrity rules, idempotency requirements, ML attribution support, required test coverage, Definition of Done
+- §5.1 corrected mid-sprint: replaced stale DeliveryLog thread lookup with EngagementEvent lookup (EngagementEvent already carries both `thread_id` and `trigger_id`; no new migration required)
+- §11 test table rows 3–4 corrected: replaced stale "matching DeliveryLog" wording with "matching outbound EngagementEvent (event_type='nudge_sent', same thread_id and user_id)"; cbm_id source documented as `EngagementEvent.trigger_id`
+
+**`alembic/versions/0008_add_thread_id_to_engagement_events.py`** (pre-existing, confirmed):
+- Adds `thread_id String(255)` nullable to `AI_ChatBot_EngagementEvents`; prerequisite for deterministic thread-based matching
+
+**`alembic/versions/0009_add_student_responses_table.py`** (pre-existing, confirmed):
+- Creates `AI_ChatBot_StudentResponses` with 8 columns (`id`, `cbm_id`, `engagement_event_id`, `user_id`, `response_channel`, `match_method`, `confidence`, `matched_at`) and 3 named indexes (`ix_student_responses_cbm_id`, `ix_student_responses_engagement_event_id`, `ix_student_responses_user_id`)
+
+**`services/models.py`** — `StudentResponse` ORM model appended (model #17):
+- `Column()` style consistent with models 9–16
+- `__table_args__` with three explicit `Index(...)` entries using exact migration index names; avoids SQLAlchemy auto-generated names that would diverge from migration DDL
+
+**`services/outbound_delivery_service.py`** — outbound nudge_sent EngagementEvent write:
+- After each successful Twilio or email delivery, writes `EngagementEvent(event_type="nudge_sent", trigger_id=cbm_id, thread_id=<Twilio SID for WhatsApp; None for SMS/email>)`
+- Wrapped in `try/except: pass` — audit failure never blocks delivery
+- This anchors the outbound trigger to a channel thread_id, enabling deterministic thread-based matching
+
+**`services/student_response_matcher_service.py`** (new):
+- Constants: `MATCH_METHOD_THREAD_ID`, `MATCH_METHOD_TIME_PROXIMITY`, `MATCH_METHOD_MANUAL`, `CONFIDENCE_DETERMINISTIC = 1.0`, `CONFIDENCE_TIME_PROXIMITY_MAX = 0.7`, `DEFAULT_WINDOW_HOURS = 72.0`, `DEFAULT_CONFIDENCE_THRESHOLD = 0.3`
+- `MatchResult` — frozen dataclass: `cbm_id`, `engagement_event_id`, `user_id`, `response_channel`, `match_method`, `confidence`, `matched_at`
+- `ThreadIdMatcher.match()` — queries `EngagementEvent WHERE thread_id=? AND user_id=? AND event_type="nudge_sent"`; resolves `cbm_id` from `EngagementEvent.trigger_id`; returns None on empty thread_id, no matching event, or null trigger_id; confidence always 1.0
+- `TimeProximityMatcher.match()` — queries `TriggeredUser WHERE UserID=? AND Completed=1 AND CompletedDate in window`; applies `raw = max(0.0, 1-(hours/window)) * (1/count)`; caps at 0.7; returns None if zero candidates, best below threshold, or two or more meet threshold (ambiguity)
+- `persist_match(session, result)` — idempotent insert: duplicate same-cbm_id = return existing row (no-op); conflict different-cbm_id = log WARNING, return None; successful insert writes AuditLog entry (`entry_type="student_response_matched"`, `cbm_id`, `channel`, `output_message` with match_method/confidence/engagement_event_id); AuditLog call wrapped in `try/except: pass`
+
+**`services/mentor_message_service.py`** — two Sprint 10 changes:
+- **Inbound user_id fix**: `EngagementTrackerService().log_event()` previously received `user_id=None`; now parses `body.student_id` as `int` (same pattern as `DbStudentStatusFetcher.get_student()`); non-numeric values (e.g. `"A100"`) fall back to `None` — safe, documented gap
+- **Delivery suppression**: after the atomic claim commits and before the governance gate, queries `StudentResponse WHERE cbm_id=? AND confidence=1.0`; if row found, returns `{"sent": False, "reason": "student_already_responded", "cbm_id": cbm_id}` without calling governance gate or `send_text()`; heuristic rows (confidence < 1.0) do not suppress; wrapped in `try/except: pass` (fail-open)
+
+**`services/worker/response_matching_worker.py`** (new):
+- `run_response_matching(*, window_hours=72.0, confidence_threshold=0.3, batch_size=100) → dict`
+- MSSQL guard returns zero-summary immediately when `MSSQL_CONFIGURED` is false
+- Queries unmatched inbound `EngagementEvent` rows (`event_type="incoming_message"`, id not in StudentResponse subquery), ordered by id, limited to batch_size
+- Per-event: ThreadIdMatcher if `event.thread_id` is truthy; TimeProximityMatcher otherwise; `persist_match()` when a result is returned
+- Returns `{processed, matched, no_match, conflicts, skipped}` summary
+- Documents `user_id=None` gap: events with null user_id are counted as `skipped` pending `MentorMessageService` fix
+- Runnable as `python -m services.worker.response_matching_worker`
+
+### Validation
+
+| File | Tests | Result |
+|---|---|---|
+| `tests/unit/test_student_response_matcher_service.py` | 15 (4 classes) | **15 passed** |
+| `tests/unit/test_mentor_message_service.py` | 4 | **4 passed** (includes test 9: handle() returns without invoking either matcher) |
+| `tests/unit/test_mentor_message_trigger.py` → `TestDeliverySuppression` | 4 | **4 passed** |
+| `tests/unit/test_outbound_delivery_service.py` → `TestNudgeSentEngagementEvent` | 5 | **5 passed** (pre-existing, confirmed) |
+| **Sprint 10 combined gate** | **72 + 3 skipped** | **72 passed, 3 skipped** (3 MSSQL integration tests, expected in local env) |
+
+`test_student_response_matcher_service.py` classes:
+- `TestThreadIdMatcher` (4): match found returns MatchResult with confidence=1.0; empty thread_id returns None; no matching outbound event returns None; matching event with null trigger_id returns None
+- `TestTimeProximityMatcher` (5): one trigger in window returns MatchResult capped at 0.7; no candidates returns None; confidence below threshold returns None; two candidates both above threshold returns None (ambiguity); trigger outside window ignored
+- `TestPersistMatch` (3): inserts StudentResponse from MatchResult; duplicate same-cbm_id returns existing row, no second insert; conflict different-cbm_id returns None, no insert
+- `TestPersistMatchAuditLog` (3): successful insert creates AuditLog entry with correct fields; duplicate does not create second AuditLog; conflict does not create AuditLog
+
+`test_mentor_message_service.py` additions (3 new tests):
+- `test_handle_passes_int_user_id_to_log_event_when_student_id_is_numeric` — numeric student_id converted to int and passed as user_id
+- `test_handle_passes_none_user_id_to_log_event_when_student_id_is_non_numeric` — non-numeric falls back to None
+- `test_handle_does_not_invoke_response_matchers` — `ThreadIdMatcher.match` and `TimeProximityMatcher.match` patched to raise; handle() completes without calling either (directive §9)
+
+`TestDeliverySuppression` (4 tests): confidence=1.0 suppresses, send_text not called; confidence=0.7 does not suppress, send_text called; no StudentResponse row does not suppress, send_text called; suppression query error fails open, send_text called
+
+### Self-Annealing Events
+
+| Failure | Root Cause | Fix |
+|---|---|---|
+| `StudentResponse` model index names diverged from migration | `index=True` on column generates SQLAlchemy auto-names (`ix_AI_ChatBot_StudentResponses_cbm_id`); migration uses short names (`ix_student_responses_cbm_id`) | Removed `index=True`; added explicit `__table_args__` with three `Index(...)` entries matching migration names exactly |
+| Directive §5.1 referenced `DeliveryLog.thread_id` which does not exist | `DeliveryLog` has no `thread_id` column and no migration adds one; earlier draft incorrectly assumed it would | Corrected directive §5.1 to use `EngagementEvent` as the thread anchor (already carries `thread_id` from migration 0008 and `trigger_id` as the cbm_id link); `OutboundDeliveryService` writes `nudge_sent` EngagementEvent after delivery |
+| Directive §11 test table rows 3–4 retained stale "DeliveryLog" wording after §5.1 correction | §11 was not updated when §5.1 was corrected | Updated §11 rows 3–4 to reference "outbound EngagementEvent (event_type='nudge_sent')" with `cbm_id` sourced from `EngagementEvent.trigger_id` |
+| `user_id=None` hardcoded in inbound EngagementEvent write | `MentorMessageService.handle()` passed literal `None` to `EngagementTrackerService.log_event(user_id=None, ...)` regardless of the request's `student_id` | Parsed `body.student_id` as `int` using the same `try/except (ValueError, TypeError)` pattern as `DbStudentStatusFetcher.get_student()`; non-numeric values fall back to `None` |
+
+### Risks / Limitations
+- All Sprint 10 changes are UNCOMMITTED — 4 new/modified files: `student_response_matcher_service.py` (new), `response_matching_worker.py` (new), `student_response_tracking_contract.md` (new directive), `test_student_response_matcher_service.py` (new test file); 4 modified: `models.py`, `outbound_delivery_service.py`, `mentor_message_service.py`, `test_mentor_message_service.py`, `test_mentor_message_trigger.py`
+- **`user_id=None` gap partially resolved**: numeric `student_id` values (e.g. `"12345"`) now propagate correctly; non-numeric values (e.g. `"A100"`) still produce `user_id=None` on inbound EngagementEvents. Worker counts these as `skipped`. Full coverage requires API callers to pass numeric student IDs
+- **Thread-based matching requires WhatsApp**: `thread_id` is only populated for WhatsApp outbound sends (Twilio SID stored as thread_id); SMS and email sends store `thread_id=None`. Time-proximity is the only matching strategy available for SMS/email channels
+- **Worker not yet scheduled**: `response_matching_worker.py` is a standalone callable; no scheduler integration exists. Must be invoked manually or via an external cron until Sprint 11 adds scheduling
+- Migration 0008 (thread_id column) and 0009 (StudentResponses table) were already created in Sprint 2 but have not been confirmed as applied to any live SQL Server DB; `alembic upgrade head` required before Sprint 10 runtime components are functional
+- AuditLog write in `persist_match()` is best-effort (try/except: pass); audit gaps possible if SessionLocal is intermittently unavailable
+
+### Maturity
+- `StudentResponse` ORM model — **Tested**
+- Migration 0009 (`AI_ChatBot_StudentResponses`) — **Integrated** (file exists; SQL Server application pending)
+- `directives/student_response_tracking_contract.md` — **Verified** (all §12 DoD items satisfied; §11 wording corrected)
+- `ThreadIdMatcher` — **Tested** (4 unit tests)
+- `TimeProximityMatcher` — **Tested** (5 unit tests)
+- `persist_match()` with idempotency — **Tested** (3 unit tests)
+- AuditLog traceability in `persist_match()` — **Tested** (3 unit tests)
+- Outbound `nudge_sent` EngagementEvent write — **Tested** (5 unit tests in `TestNudgeSentEngagementEvent`)
+- Inbound user_id persistence — **Tested** (2 unit tests)
+- Delivery suppression (confidence=1.0 only) — **Tested** (4 unit tests)
+- Request/response isolation (directive §9) — **Tested** (1 explicit test: `test_handle_does_not_invoke_response_matchers`)
+- `response_matching_worker.py` — **Integrated** (worker created; no scheduler; no worker-specific unit tests yet)
+
+---
+
 ## Pending Work
+
+### Immediate (Sprint 10 commit gate — READY)
+- [x] ~~Implement Student Response Tracking pipeline~~ — **Resolved 2026-06-21**: all directive §12 DoD items satisfied; 72 passed, 3 skipped
+- [ ] Commit Sprint 10 as a single logical changeset — files to stage: `services/student_response_matcher_service.py` (new), `services/worker/response_matching_worker.py` (new), `directives/student_response_tracking_contract.md` (new/modified), `tests/unit/test_student_response_matcher_service.py` (new), `services/models.py`, `services/outbound_delivery_service.py`, `services/mentor_message_service.py`, `tests/unit/test_mentor_message_service.py`, `tests/unit/test_mentor_message_trigger.py`, `PROGRESS.md`
+- [ ] Apply migrations 0008–0009 to SQL Server (`alembic upgrade head`) — required before response_matching_worker can run against real data
 
 ### Immediate (Sprint 9 commit gate — READY)
 - [x] ~~Implement 3 governance review action endpoints~~ — **Resolved 2026-06-17**: `approve_review`, `reject_review`, `defer_review` in `api/routes/sentinel.py`; all delegate to `GovernanceReviewService`; correct 503/404/422/200 handling

@@ -377,8 +377,8 @@ or send a real message.
 |---|---|---|
 | 1 | `thread_id` present on inbound request → stored on `EngagementEvent` | Field is non-null after `handle()` |
 | 2 | `thread_id` absent on inbound request → `None` on `EngagementEvent` | Field remains `None` |
-| 3 | Thread-based matcher finds matching `DeliveryLog` → `StudentResponse` created with `confidence=1.0`, `match_method="thread_id"` | Row exists with correct fields |
-| 4 | Thread-based matcher finds no matching `DeliveryLog` → no `StudentResponse` created | Row does not exist; no exception raised |
+| 3 | Thread-based matcher finds matching outbound `EngagementEvent` (`event_type="nudge_sent"`, same `thread_id` and `user_id`) → `StudentResponse` created with `confidence=1.0`, `match_method="thread_id"` | Row exists with correct fields; `cbm_id` sourced from `EngagementEvent.trigger_id` |
+| 4 | Thread-based matcher finds no matching outbound `EngagementEvent` → no `StudentResponse` created | Row does not exist; no exception raised |
 | 5 | Time-proximity matcher: one trigger in window → `StudentResponse` created with `confidence ≤ 0.7`, `match_method="time_proximity"` | Row exists with correct method and bounded confidence |
 | 6 | Time-proximity matcher: two triggers in window both above threshold → no row created | Ambiguity resolved by creating nothing |
 | 7 | Time-proximity matcher: no trigger in window → no row created | No exception; no row |

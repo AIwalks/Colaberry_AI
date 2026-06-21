@@ -6,7 +6,7 @@ from config.database import SessionLocal, MSSQL_CONFIGURED
 from services.audit_log_service import AuditLogService
 from services.engagement_tracker_service import EngagementTrackerService
 from services.outbound_delivery_service import OutboundDeliveryService
-from services.models import TriggeredUser, TriggerRule, TriggerData
+from services.models import TriggeredUser, TriggerRule, TriggerData, StudentResponse
 from services.trigger_processing_service import TriggerEvaluator
 from services.intervention_outcome_service import InterventionOutcomeService
 from services.recommendation_tracking_service import RecommendationTrackingService
@@ -160,6 +160,22 @@ class MentorMessageService:
                 )
             except Exception:
                 pass
+
+        # Delivery suppression — runs after the claim is durable, before the
+        # governance gate, so no review record is created for a student who
+        # has already replied to this trigger with a deterministic match.
+        # Only confidence=1.0 rows suppress; heuristic matches (< 1.0) do not.
+        # Fail-open: any exception here allows delivery to proceed.
+        try:
+            with SessionLocal() as supp_session:
+                _suppression_row = supp_session.query(StudentResponse).filter(
+                    StudentResponse.cbm_id     == cbm_id,
+                    StudentResponse.confidence == 1.0,
+                ).first()
+            if _suppression_row is not None:
+                return {"sent": False, "reason": "student_already_responded", "cbm_id": cbm_id}
+        except Exception:
+            pass
 
         # Governance gate — read-only check in a dedicated session.
         # Runs after the claim is durable, before any outbound delivery.

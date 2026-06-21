@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from services.engagement_tracker_service import EngagementTrackerService
 from services.mentor_message_service import MentorMessageService
+from services.student_response_matcher_service import ThreadIdMatcher, TimeProximityMatcher
 
 
 class FakeBody:
@@ -79,3 +80,28 @@ def test_handle_passes_none_user_id_to_log_event_when_student_id_is_non_numeric(
 
     assert captured.get("user_id") is None
     assert captured.get("event_type") == "incoming_message"
+
+
+# ---------------------------------------------------------------------------
+# Directive §9 — matching must never run in the request/response cycle
+# ---------------------------------------------------------------------------
+
+def test_handle_does_not_invoke_response_matchers():
+    """handle() must return without calling ThreadIdMatcher.match or TimeProximityMatcher.match.
+
+    Both matcher methods are patched to raise AssertionError.  If handle() were
+    to invoke either matcher, the test would fail immediately on that call.
+    A clean return proves matching is excluded from the request/response cycle
+    (directive §9).
+    """
+    _sentinel = AssertionError(
+        "Response matcher invoked inside handle() — violates directive §9"
+    )
+
+    with patch.object(ThreadIdMatcher, "match", side_effect=_sentinel), \
+         patch.object(TimeProximityMatcher, "match", side_effect=_sentinel):
+        result = MentorMessageService().handle(
+            body=FakeBody(), request_id="req-9", status_fetcher=FakeStatusFetcher()
+        )
+
+    assert result["request_id"] == "req-9"

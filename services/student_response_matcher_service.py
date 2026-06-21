@@ -18,6 +18,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from services.audit_log_service import AuditLogService
 from services.models import EngagementEvent, StudentResponse, TriggeredUser
 
 logger = logging.getLogger(__name__)
@@ -136,6 +137,23 @@ def persist_match(session: Session, result: MatchResult) -> Optional[StudentResp
         row.id, result.engagement_event_id, result.cbm_id,
         result.match_method, result.confidence,
     )
+    try:
+        AuditLogService().log_event(
+            phone_number            = None,
+            entry_type              = "student_response_matched",
+            input_message           = None,
+            output_message          = (
+                f"match_method={result.match_method} "
+                f"confidence={result.confidence:.3f} "
+                f"engagement_event_id={result.engagement_event_id}"
+            ),
+            cbm_id                  = result.cbm_id,
+            email                   = None,
+            channel                 = result.response_channel,
+            processing_time_seconds = None,
+        )
+    except Exception:
+        pass
     return row
 
 

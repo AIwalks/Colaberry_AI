@@ -5,10 +5,12 @@ Uses in-memory SQLite sessions — no network, no real DB required.
 
 import pytest
 from datetime import datetime, timedelta
+from unittest.mock import MagicMock, patch
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from services.audit_log_service import AuditLogService
 from services.models import EngagementEvent, StudentResponse, TriggeredUser
 from services.student_response_matcher_service import (
     CONFIDENCE_DETERMINISTIC,
@@ -394,3 +396,56 @@ class TestPersistMatch:
         )
         assert len(rows) == 1
         assert rows[0].cbm_id == 42  # original row untouched
+
+
+# ---------------------------------------------------------------------------
+# persist_match — AuditLog traceability (directive §12)
+# ---------------------------------------------------------------------------
+
+class TestPersistMatchAuditLog:
+    """AuditLog entries must be written on successful insert only.
+
+    AuditLogService.log_event is mocked so these tests run without a DB.
+    The mock is patched on the class so it intercepts the call regardless
+    of where in student_response_matcher_service the import resolves.
+    """
+
+    def test_successful_insert_creates_audit_log_entry(self, sr_db_session):
+        """New StudentResponse row → exactly one AuditLog entry with correct fields."""
+        result = _make_result()
+        mock_log = MagicMock(return_value=1)
+
+        with patch.object(AuditLogService, "log_event", mock_log):
+            persist_match(sr_db_session, result)
+
+        mock_log.assert_called_once()
+        kwargs = mock_log.call_args.kwargs
+        assert kwargs["entry_type"]    == "student_response_matched"
+        assert kwargs["cbm_id"]        == result.cbm_id
+        assert kwargs["channel"]       == result.response_channel
+        assert result.match_method     in kwargs["output_message"]
+        assert kwargs["phone_number"]  is None
+        assert kwargs["email"]         is None
+
+    def test_duplicate_same_cbm_id_does_not_create_audit_log(self, sr_db_session):
+        """Second call with same engagement_event_id + cbm_id is a no-op — no second AuditLog."""
+        result = _make_result()
+        mock_log = MagicMock(return_value=1)
+
+        with patch.object(AuditLogService, "log_event", mock_log):
+            persist_match(sr_db_session, result)  # insert — AuditLog written
+            persist_match(sr_db_session, result)  # duplicate — no-op
+
+        assert mock_log.call_count == 1
+
+    def test_conflict_different_cbm_id_does_not_create_audit_log(self, sr_db_session):
+        """Conflict (different cbm_id, same engagement_event_id) — no AuditLog on the blocked call."""
+        first_result  = _make_result(cbm_id=42)
+        second_result = _make_result(cbm_id=99)
+        mock_log = MagicMock(return_value=1)
+
+        with patch.object(AuditLogService, "log_event", mock_log):
+            persist_match(sr_db_session, first_result)   # insert — AuditLog written
+            persist_match(sr_db_session, second_result)  # conflict — no AuditLog
+
+        assert mock_log.call_count == 1
