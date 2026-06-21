@@ -9,7 +9,7 @@ is wired in.
 import os
 from datetime import datetime
 from config.database import SessionLocal
-from services.models import DeliveryLog, TriggerData
+from services.models import DeliveryLog, EngagementEvent, TriggerData
 
 
 class OutboundDeliveryService:
@@ -124,6 +124,24 @@ class OutboundDeliveryService:
                             _log.commit()
                 except Exception:
                     pass
+                if _twilio_success and cbm_id is not None:
+                    try:
+                        if SessionLocal is not None:
+                            _nudge_thread_id = _twilio_sid if _twilio_channel == "whatsapp" else None
+                            with SessionLocal() as _evt:
+                                _evt.add(EngagementEvent(
+                                    user_id    = user_id,
+                                    event_type = "nudge_sent",
+                                    channel    = _twilio_channel,
+                                    trigger_id = cbm_id,
+                                    thread_id  = _nudge_thread_id,
+                                    agent_name = "OutboundDeliveryService",
+                                    message    = None,
+                                    created_at = datetime.utcnow(),
+                                ))
+                                _evt.commit()
+                    except Exception:
+                        pass
 
             test_email = os.environ.get("OUTBOUND_TEST_EMAIL", "")
             if test_email:
@@ -176,6 +194,23 @@ class OutboundDeliveryService:
                             _log.commit()
                 except Exception:
                     pass
+                if _email_success and cbm_id is not None:
+                    try:
+                        if SessionLocal is not None:
+                            with SessionLocal() as _evt:
+                                _evt.add(EngagementEvent(
+                                    user_id    = user_id,
+                                    event_type = "nudge_sent",
+                                    channel    = "email",
+                                    trigger_id = cbm_id,
+                                    thread_id  = None,
+                                    agent_name = "OutboundDeliveryService",
+                                    message    = None,
+                                    created_at = datetime.utcnow(),
+                                ))
+                                _evt.commit()
+                    except Exception:
+                        pass
 
             # Integration point — _send_mandrill_email():
             # When the Mandrill adapter is activated, add a block here:

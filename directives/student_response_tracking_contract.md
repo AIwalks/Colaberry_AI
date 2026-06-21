@@ -138,15 +138,45 @@ table to exist yet.
 ### 5.1 `thread_id` (Deterministic)
 
 **When it applies:** The inbound `MentorMessageRequest` contains a non-null `thread_id`
-AND an outbound `DeliveryLog` record exists with the same `thread_id` for this student.
+AND an outbound `EngagementEvent` row exists with the same `thread_id` for this student.
+
+**Why `EngagementEvent`, not `DeliveryLog`**
+
+`EngagementEvent` is the correct source of truth for thread-based matching because:
+
+- `EngagementEvent` already carries both `thread_id` (added in migration `0008`) and
+  `trigger_id` (which is the `cbm_id` link). No new migration is required.
+- `DeliveryLog` has no `thread_id` column and no migration adds one. Requiring
+  `DeliveryLog.thread_id` would introduce a 15th migration, a second source of truth
+  for the outbound-to-`cbm_id` link, and an ORM change — all avoidable.
+- Using `EngagementEvent.trigger_id` as the `cbm_id` source is consistent with the
+  FK-style reference pattern used throughout this codebase.
+
+**Outbound event write requirement**
+
+When `OutboundDeliveryService` successfully delivers a message on a threading-capable
+channel (WhatsApp, web chat), the caller or delivery service **must** write an outbound
+`EngagementEvent` row with:
+
+- `event_type = "nudge_sent"`
+- `trigger_id = <cbm_id>` — the `TriggeredUsers.CBM_ID` that caused the send
+- `thread_id  = <provider/channel thread identifier>` — the channel-level identifier
+  that will be echoed back on the student's reply (e.g. WhatsApp conversation ID,
+  web chat session ID)
+- `user_id`, `channel`, `agent_name` as appropriate
+
+This write is the prerequisite for any thread-based match. Without it, `thread_id`
+matching cannot resolve a `cbm_id` and must not be attempted.
 
 **Resolution:**
-1. Look up the `DeliveryLog` row where `thread_id` matches and `user_id` matches.
-2. Retrieve `cbm_id` from that delivery log row.
+1. Look up the outbound `EngagementEvent` row where `thread_id` matches, `user_id`
+   matches, and `event_type = "nudge_sent"`.
+2. Retrieve `cbm_id` from `EngagementEvent.trigger_id` on that row.
 3. Create a `StudentResponse` row with `match_method="thread_id"`, `confidence=1.0`.
 
-**Failure mode:** No matching `DeliveryLog` found with that `thread_id`. Do not create
-a `StudentResponse` row. Log a warning. Do not fall back to time-proximity automatically.
+**Failure mode:** No matching outbound `EngagementEvent` found with that `thread_id`.
+Do not create a `StudentResponse` row. Log a warning. Do not fall back to
+time-proximity automatically.
 
 ### 5.2 `time_proximity` (Heuristic)
 

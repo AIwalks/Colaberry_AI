@@ -1,5 +1,6 @@
 """Unit tests for OutboundDeliveryService."""
 
+import contextlib
 from unittest.mock import MagicMock, patch
 
 
@@ -306,3 +307,196 @@ class TestDeliveryContract:
             with SessionLocal() as session:
                 session.query(DeliveryLog).filter_by(cbm_id=_CBM_ID).delete()
                 session.commit()
+
+
+class TestNudgeSentEngagementEvent:
+    """Verify that a nudge_sent EngagementEvent is written after successful delivery."""
+
+    # ------------------------------------------------------------------
+    # Session mock shared across tests in this class
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _make_session_factory():
+        """Return (factory, added_objects_list).
+
+        factory() creates a new fake session on each call.
+        added_objects_list accumulates every obj passed to session.add().
+        """
+        added = []
+
+        class _FakeSession:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def get(self, model_class, pk): return None
+            def add(self, obj): added.append(obj)
+            def commit(self): pass
+
+        return _FakeSession, added
+
+    # ------------------------------------------------------------------
+    # WhatsApp: thread_id == Twilio message SID
+    # ------------------------------------------------------------------
+
+    def test_whatsapp_success_writes_nudge_sent_with_thread_id(self, monkeypatch):
+        """WhatsApp success → EngagementEvent with thread_id=msg.sid."""
+        monkeypatch.setenv("OUTBOUND_USE_WHATSAPP",  "1")
+        monkeypatch.setenv("TWILIO_ACCOUNT_SID",     "ACtest")
+        monkeypatch.setenv("TWILIO_AUTH_TOKEN",       "authtest")
+        monkeypatch.setenv("TWILIO_FROM_NUMBER",      "+15550000000")
+        monkeypatch.setenv("OUTBOUND_TEST_PHONE",     "+15551234567")
+        monkeypatch.delenv("EMAIL_HOST", raising=False)
+
+        mock_msg = MagicMock()
+        mock_msg.sid = "WA_SID_001"
+        mock_twilio = MagicMock()
+        mock_twilio.messages.create.return_value = mock_msg
+
+        factory, added = self._make_session_factory()
+        import services.outbound_delivery_service as module
+        monkeypatch.setattr(module, "SessionLocal", factory)
+
+        with patch("twilio.rest.Client", return_value=mock_twilio):
+            from services.outbound_delivery_service import OutboundDeliveryService
+            OutboundDeliveryService().send_text(user_id=1, message="Hello", cbm_id=42)
+
+        from services.models import EngagementEvent
+        nudge_events = [o for o in added if isinstance(o, EngagementEvent)]
+        assert len(nudge_events) == 1, f"Expected 1 nudge_sent event, got {len(nudge_events)}"
+        evt = nudge_events[0]
+        assert evt.event_type == "nudge_sent"
+        assert evt.trigger_id == 42
+        assert evt.thread_id  == "WA_SID_001"
+        assert evt.channel    == "whatsapp"
+        assert evt.user_id    == 1
+        assert evt.agent_name == "OutboundDeliveryService"
+
+    # ------------------------------------------------------------------
+    # SMS: no thread_id (SMS does not support threading per directive §3)
+    # ------------------------------------------------------------------
+
+    def test_sms_success_writes_nudge_sent_without_thread_id(self, monkeypatch):
+        """SMS success → EngagementEvent with thread_id=None."""
+        monkeypatch.delenv("OUTBOUND_USE_WHATSAPP", raising=False)
+        monkeypatch.setenv("TWILIO_ACCOUNT_SID",    "ACtest")
+        monkeypatch.setenv("TWILIO_AUTH_TOKEN",      "authtest")
+        monkeypatch.setenv("TWILIO_FROM_NUMBER",     "+15550000000")
+        monkeypatch.setenv("OUTBOUND_TEST_PHONE",    "+15551234567")
+        monkeypatch.delenv("EMAIL_HOST", raising=False)
+
+        mock_msg = MagicMock()
+        mock_msg.sid = "SMS_SID_001"
+        mock_twilio = MagicMock()
+        mock_twilio.messages.create.return_value = mock_msg
+
+        factory, added = self._make_session_factory()
+        import services.outbound_delivery_service as module
+        monkeypatch.setattr(module, "SessionLocal", factory)
+
+        with patch("twilio.rest.Client", return_value=mock_twilio):
+            from services.outbound_delivery_service import OutboundDeliveryService
+            OutboundDeliveryService().send_text(user_id=1, message="Hello", cbm_id=42)
+
+        from services.models import EngagementEvent
+        nudge_events = [o for o in added if isinstance(o, EngagementEvent)]
+        assert len(nudge_events) == 1
+        evt = nudge_events[0]
+        assert evt.event_type == "nudge_sent"
+        assert evt.trigger_id == 42
+        assert evt.thread_id  is None
+        assert evt.channel    == "sms"
+
+    # ------------------------------------------------------------------
+    # Email: no thread_id
+    # ------------------------------------------------------------------
+
+    def test_email_success_writes_nudge_sent_without_thread_id(self, monkeypatch):
+        """Email success → EngagementEvent with thread_id=None."""
+        monkeypatch.setenv("EMAIL_HOST",          "smtp.example.com")
+        monkeypatch.setenv("EMAIL_FROM",          "sender@example.com")
+        monkeypatch.setenv("EMAIL_PASSWORD",      "secret")
+        monkeypatch.setenv("OUTBOUND_TEST_EMAIL", "student@example.com")
+        monkeypatch.delenv("TWILIO_ACCOUNT_SID",  raising=False)
+
+        mock_server = MagicMock()
+
+        factory, added = self._make_session_factory()
+        import services.outbound_delivery_service as module
+        monkeypatch.setattr(module, "SessionLocal", factory)
+
+        with patch("smtplib.SMTP_SSL",
+                   MagicMock(return_value=contextlib.nullcontext(mock_server))):
+            from services.outbound_delivery_service import OutboundDeliveryService
+            OutboundDeliveryService().send_text(user_id=1, message="Hello", cbm_id=42)
+
+        from services.models import EngagementEvent
+        nudge_events = [o for o in added if isinstance(o, EngagementEvent)]
+        assert len(nudge_events) == 1
+        evt = nudge_events[0]
+        assert evt.event_type == "nudge_sent"
+        assert evt.trigger_id == 42
+        assert evt.thread_id  is None
+        assert evt.channel    == "email"
+
+    # ------------------------------------------------------------------
+    # No cbm_id → no EngagementEvent
+    # ------------------------------------------------------------------
+
+    def test_nudge_sent_not_written_when_cbm_id_is_none(self, monkeypatch):
+        """When cbm_id is not supplied, no nudge_sent EngagementEvent is written."""
+        monkeypatch.delenv("OUTBOUND_USE_WHATSAPP", raising=False)
+        monkeypatch.setenv("TWILIO_ACCOUNT_SID",    "ACtest")
+        monkeypatch.setenv("TWILIO_AUTH_TOKEN",      "authtest")
+        monkeypatch.setenv("TWILIO_FROM_NUMBER",     "+15550000000")
+        monkeypatch.setenv("OUTBOUND_TEST_PHONE",    "+15551234567")
+        monkeypatch.delenv("EMAIL_HOST", raising=False)
+
+        mock_msg = MagicMock()
+        mock_msg.sid = "SMS_SID_nocbm"
+        mock_twilio = MagicMock()
+        mock_twilio.messages.create.return_value = mock_msg
+
+        factory, added = self._make_session_factory()
+        import services.outbound_delivery_service as module
+        monkeypatch.setattr(module, "SessionLocal", factory)
+
+        with patch("twilio.rest.Client", return_value=mock_twilio):
+            from services.outbound_delivery_service import OutboundDeliveryService
+            OutboundDeliveryService().send_text(user_id=1, message="Hello")  # cbm_id=None
+
+        from services.models import EngagementEvent
+        nudge_events = [o for o in added if isinstance(o, EngagementEvent)]
+        assert len(nudge_events) == 0, (
+            f"Expected no nudge_sent event when cbm_id=None, got {len(nudge_events)}"
+        )
+
+    # ------------------------------------------------------------------
+    # Delivery failure → no EngagementEvent
+    # ------------------------------------------------------------------
+
+    def test_nudge_sent_not_written_on_delivery_failure(self, monkeypatch):
+        """When the Twilio send raises an exception, no nudge_sent event is written."""
+        monkeypatch.delenv("OUTBOUND_USE_WHATSAPP", raising=False)
+        monkeypatch.setenv("TWILIO_ACCOUNT_SID",    "ACtest")
+        monkeypatch.setenv("TWILIO_AUTH_TOKEN",      "authtest")
+        monkeypatch.setenv("TWILIO_FROM_NUMBER",     "+15550000000")
+        monkeypatch.setenv("OUTBOUND_TEST_PHONE",    "+15551234567")
+        monkeypatch.delenv("EMAIL_HOST", raising=False)
+
+        mock_twilio = MagicMock()
+        mock_twilio.messages.create.side_effect = Exception("Twilio unavailable")
+
+        factory, added = self._make_session_factory()
+        import services.outbound_delivery_service as module
+        monkeypatch.setattr(module, "SessionLocal", factory)
+
+        with patch("twilio.rest.Client", return_value=mock_twilio):
+            from services.outbound_delivery_service import OutboundDeliveryService
+            result = OutboundDeliveryService().send_text(user_id=1, message="Hello", cbm_id=42)
+
+        assert isinstance(result, list)
+        from services.models import EngagementEvent
+        nudge_events = [o for o in added if isinstance(o, EngagementEvent)]
+        assert len(nudge_events) == 0, (
+            f"Expected no nudge_sent event on delivery failure, got {len(nudge_events)}"
+        )
