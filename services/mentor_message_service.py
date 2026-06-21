@@ -59,8 +59,12 @@ class MentorMessageService:
             pass
 
         try:
+            try:
+                _inbound_user_id: int | None = int(body.student_id)
+            except (ValueError, TypeError):
+                _inbound_user_id = None
             EngagementTrackerService().log_event(
-                user_id=None,
+                user_id=_inbound_user_id,
                 event_type="incoming_message",
                 channel=body.channel if isinstance(body.channel, str) else body.channel.value,
                 message=body.message,
