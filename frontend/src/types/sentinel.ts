@@ -108,3 +108,30 @@ export type LoadState<T> =
   | { status: "loading" }
   | { status: "success"; data: T }
   | { status: "error"; message: string };
+
+// ---------------------------------------------------------------------------
+// Governance action request bodies (mirrors backend Pydantic schemas)
+// ---------------------------------------------------------------------------
+
+export interface GovernanceActionApprove {
+  reviewed_by:  string;
+  review_notes?: string;
+}
+
+export interface GovernanceActionReject {
+  reviewed_by:  string;
+  review_notes: string;
+}
+
+export interface GovernanceActionDefer {
+  reviewed_by:       string;
+  governance_reason: string;
+}
+
+export type GovernanceActionType = "approve" | "reject" | "defer";
+
+export type ActionState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "success" }
+  | { status: "error"; message: string };

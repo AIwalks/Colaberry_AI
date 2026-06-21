@@ -7,11 +7,13 @@ import userEvent from "@testing-library/user-event";
 // ---------------------------------------------------------------------------
 
 vi.mock("../../hooks/useSentinelData", () => ({
-  useGovernanceReviews:      vi.fn(),
-  usePendingReviews:         vi.fn(),
-  useLatestInterpretation:   vi.fn(),
-  useInterpretationHistory:  vi.fn(),
-  useReuseMetrics:           vi.fn(),
+  useGovernanceReviews:     vi.fn(),
+  usePendingReviews:        vi.fn(),
+  useLatestInterpretation:  vi.fn(),
+  useInterpretationHistory: vi.fn(),
+  useReuseMetrics:          vi.fn(),
+  useStudentList:           vi.fn(),
+  useGovernanceAction:      vi.fn(),
 }));
 
 import {
@@ -19,6 +21,8 @@ import {
   useLatestInterpretation,
   useInterpretationHistory,
   useReuseMetrics,
+  useStudentList,
+  useGovernanceAction,
 } from "../../hooks/useSentinelData";
 import { SentinelDashboard } from "../SentinelDashboard";
 
@@ -41,8 +45,8 @@ function setupAllMocks() {
     state: {
       status: "success",
       data: {
-        total_interpretations: 0,
-        active_interpretations: 0,
+        total_interpretations:       0,
+        active_interpretations:      0,
         invalidated_interpretations: 0,
         by_risk_level:   { low: 0, medium: 0, high: 0, critical: 0, unknown: 0 },
         by_generated_by: { claude: 0, fallback: 0, deterministic_engine: 0 },
@@ -52,6 +56,15 @@ function setupAllMocks() {
       },
     },
     reload: noopReload,
+  });
+  vi.mocked(useStudentList).mockReturnValue({
+    state:  { status: "success", data: { students: [], total: 0, source: "mock" } },
+    reload: noopReload,
+  });
+  vi.mocked(useGovernanceAction).mockReturnValue({
+    state:   { status: "idle" },
+    execute: vi.fn().mockResolvedValue(true),
+    reset:   vi.fn(),
   });
 }
 
