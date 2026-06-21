@@ -927,3 +927,42 @@ class RecommendationCandidatePool(Base):
             f"dimension={self.dimension!r} "
             f"is_active={self.is_active}>"
         )
+
+
+# ---------------------------------------------------------------------------
+# 17. StudentResponse
+# ---------------------------------------------------------------------------
+
+class StudentResponse(Base):
+    """Maps to AI_ChatBot_StudentResponses (write-only, append-only).
+
+    One row per detected student response to an engagement event.
+    Records which channel was matched, the match method used, and the
+    confidence score assigned by the response detection layer.
+    """
+
+    __tablename__ = "AI_ChatBot_StudentResponses"
+
+    __table_args__ = (
+        Index("ix_student_responses_cbm_id",              "cbm_id"),
+        Index("ix_student_responses_engagement_event_id", "engagement_event_id"),
+        Index("ix_student_responses_user_id",             "user_id"),
+    )
+
+    id                  = Column(Integer,    primary_key=True, autoincrement=True)
+    cbm_id              = Column(Integer,    nullable=False)
+    engagement_event_id = Column(Integer,    nullable=False)
+    user_id             = Column(Integer,    nullable=False)
+    response_channel    = Column(String(50), nullable=False)
+    match_method        = Column(String(30), nullable=False)
+    confidence          = Column(Float,      nullable=False)
+    matched_at          = Column(DateTime,   nullable=False)
+
+    def __repr__(self) -> str:
+        return (
+            f"<StudentResponse id={self.id} "
+            f"cbm_id={self.cbm_id} "
+            f"user_id={self.user_id} "
+            f"response_channel={self.response_channel!r} "
+            f"match_method={self.match_method!r}>"
+        )
