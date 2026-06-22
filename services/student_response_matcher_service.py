@@ -220,6 +220,7 @@ class ThreadIdMatcher:
                 EngagementEvent.user_id    == user_id,
                 EngagementEvent.event_type == "nudge_sent",
             )
+            .order_by(EngagementEvent.created_at.desc())
             .first()
         )
 

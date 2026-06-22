@@ -127,7 +127,7 @@ def test_happy_path_log_event_called_with_resolved_user_id(db_with_phone):
         channel="whatsapp",
         message="Yes I received it",
         agent_name="TwilioWebhook",
-        thread_id="SMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        thread_id="wa:42",
     )
 
 
@@ -178,5 +178,28 @@ def test_anonymous_phone_still_creates_event(db_phone_not_found):
     kwargs = mock_svc.return_value.log_event.call_args.kwargs
     assert kwargs["user_id"] is None
     assert kwargs["event_type"] == "incoming_message"
-    assert kwargs["thread_id"] == "SMxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    assert kwargs["thread_id"] is None   # no user_id → no stable key → None
     assert kwargs["channel"] == "whatsapp"
+
+
+# ---------------------------------------------------------------------------
+# Stable wa: thread_id semantics
+# ---------------------------------------------------------------------------
+
+def test_log_event_uses_wa_key_when_user_resolved(db_with_phone):
+    """Resolved user_id=42 → thread_id='wa:42', never the inbound MessageSid."""
+    with patch(_MSSQL_PATCH, True), patch(_SVC_PATCH) as mock_svc:
+        mock_svc.return_value.log_event.return_value = 55
+        client.post(_URL, data=_FORM)
+    kwargs = mock_svc.return_value.log_event.call_args.kwargs
+    assert kwargs["thread_id"] == "wa:42"
+    assert kwargs["thread_id"] != _FORM["MessageSid"]
+
+
+def test_log_event_uses_none_thread_id_when_anonymous(db_phone_not_found):
+    """Unresolved phone → user_id=None → thread_id=None (ThreadIdMatcher will skip)."""
+    with patch(_MSSQL_PATCH, True), patch(_SVC_PATCH) as mock_svc:
+        mock_svc.return_value.log_event.return_value = 56
+        client.post(_URL, data=_FORM)
+    kwargs = mock_svc.return_value.log_event.call_args.kwargs
+    assert kwargs["thread_id"] is None

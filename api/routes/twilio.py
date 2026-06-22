@@ -93,7 +93,7 @@ async def twilio_inbound(
             channel="whatsapp",
             message=Body,
             agent_name="TwilioWebhook",
-            thread_id=MessageSid,
+            thread_id=f"wa:{user_id}" if user_id is not None else None,
         )
     else:
         logger.warning(

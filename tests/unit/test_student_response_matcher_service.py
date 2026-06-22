@@ -186,6 +186,53 @@ class TestThreadIdMatcher:
         )
         assert result is None
 
+    def test_most_recent_outbound_event_selected_when_multiple_exist(self, db_session):
+        """When multiple nudge_sent events share the same thread_id, the one with
+        the latest created_at is returned — ensuring a reply is attributed to
+        the most recent nudge, not an older one.
+
+        Uses the stable 'wa:{user_id}' conversation key to simulate real WhatsApp
+        matching where thread_id = 'wa:10' for all nudges sent to user_id=10.
+        """
+        older = EngagementEvent(
+            user_id    = 10,
+            event_type = "nudge_sent",
+            channel    = "whatsapp",
+            thread_id  = "wa:10",
+            trigger_id = 11,
+            agent_name = "OutboundDeliveryService",
+            created_at = datetime(2026, 1, 1, 8, 0, 0),
+        )
+        newer = EngagementEvent(
+            user_id    = 10,
+            event_type = "nudge_sent",
+            channel    = "whatsapp",
+            thread_id  = "wa:10",
+            trigger_id = 22,
+            agent_name = "OutboundDeliveryService",
+            created_at = datetime(2026, 1, 1, 14, 0, 0),
+        )
+        db_session.add(older)
+        db_session.add(newer)
+        db_session.commit()
+        db_session.refresh(older)
+        db_session.refresh(newer)
+
+        matcher = ThreadIdMatcher(db_session)
+        result = matcher.match(
+            thread_id           = "wa:10",
+            user_id             = 10,
+            engagement_event_id = 99,
+            response_channel    = "whatsapp",
+        )
+
+        assert result is not None
+        assert result.cbm_id == 22, (
+            f"Expected most recent trigger_id=22, got cbm_id={result.cbm_id}"
+        )
+        assert result.confidence == CONFIDENCE_DETERMINISTIC
+        assert result.match_method == MATCH_METHOD_THREAD_ID
+
 
 # ---------------------------------------------------------------------------
 # TimeProximityMatcher

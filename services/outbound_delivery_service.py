@@ -127,7 +127,11 @@ class OutboundDeliveryService:
                 if _twilio_success and cbm_id is not None:
                     try:
                         if SessionLocal is not None:
-                            _nudge_thread_id = _twilio_sid if _twilio_channel == "whatsapp" else None
+                            # Use stable per-user conversation key for WhatsApp so
+                            # ThreadIdMatcher can link inbound replies to this nudge.
+                            # Twilio assigns a new MessageSid to every message, making
+                            # msg.sid useless as a thread identifier across send/receive.
+                            _nudge_thread_id = f"wa:{user_id}" if _twilio_channel == "whatsapp" else None
                             with SessionLocal() as _evt:
                                 _evt.add(EngagementEvent(
                                     user_id    = user_id,

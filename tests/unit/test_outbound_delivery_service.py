@@ -338,8 +338,14 @@ class TestNudgeSentEngagementEvent:
     # WhatsApp: thread_id == Twilio message SID
     # ------------------------------------------------------------------
 
-    def test_whatsapp_success_writes_nudge_sent_with_thread_id(self, monkeypatch):
-        """WhatsApp success → EngagementEvent with thread_id=msg.sid."""
+    def test_whatsapp_success_writes_nudge_sent_with_stable_wa_key(self, monkeypatch):
+        """WhatsApp success → EngagementEvent with thread_id='wa:{user_id}' (not msg.sid).
+
+        ThreadIdMatcher requires the same thread_id on both the outbound nudge_sent
+        event and the inbound reply event.  Twilio assigns a new MessageSid to every
+        message, so msg.sid cannot serve as a stable thread identifier.  The stable
+        key 'wa:{user_id}' is derived from user_id, which is present on both sides.
+        """
         monkeypatch.setenv("OUTBOUND_USE_WHATSAPP",  "1")
         monkeypatch.setenv("TWILIO_ACCOUNT_SID",     "ACtest")
         monkeypatch.setenv("TWILIO_AUTH_TOKEN",       "authtest")
@@ -366,10 +372,41 @@ class TestNudgeSentEngagementEvent:
         evt = nudge_events[0]
         assert evt.event_type == "nudge_sent"
         assert evt.trigger_id == 42
-        assert evt.thread_id  == "WA_SID_001"
+        assert evt.thread_id  == "wa:1"   # stable key — NOT the Twilio msg.sid
         assert evt.channel    == "whatsapp"
         assert evt.user_id    == 1
         assert evt.agent_name == "OutboundDeliveryService"
+
+    def test_whatsapp_thread_id_is_not_message_sid(self, monkeypatch):
+        """thread_id must never equal the Twilio MessageSid for WhatsApp nudges."""
+        monkeypatch.setenv("OUTBOUND_USE_WHATSAPP",  "1")
+        monkeypatch.setenv("TWILIO_ACCOUNT_SID",     "ACtest")
+        monkeypatch.setenv("TWILIO_AUTH_TOKEN",       "authtest")
+        monkeypatch.setenv("TWILIO_FROM_NUMBER",      "+15550000000")
+        monkeypatch.setenv("OUTBOUND_TEST_PHONE",     "+15551234567")
+        monkeypatch.delenv("EMAIL_HOST", raising=False)
+
+        mock_msg = MagicMock()
+        mock_msg.sid = "SMunique_per_message_sid"
+        mock_twilio = MagicMock()
+        mock_twilio.messages.create.return_value = mock_msg
+
+        factory, added = self._make_session_factory()
+        import services.outbound_delivery_service as module
+        monkeypatch.setattr(module, "SessionLocal", factory)
+
+        with patch("twilio.rest.Client", return_value=mock_twilio):
+            from services.outbound_delivery_service import OutboundDeliveryService
+            OutboundDeliveryService().send_text(user_id=7, message="Hello", cbm_id=42)
+
+        from services.models import EngagementEvent
+        nudge_events = [o for o in added if isinstance(o, EngagementEvent)]
+        assert len(nudge_events) == 1
+        evt = nudge_events[0]
+        assert evt.thread_id != "SMunique_per_message_sid", (
+            "thread_id must be a stable conversation key, not the per-message Twilio SID"
+        )
+        assert evt.thread_id == "wa:7"
 
     # ------------------------------------------------------------------
     # SMS: no thread_id (SMS does not support threading per directive §3)
