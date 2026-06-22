@@ -11,6 +11,8 @@ import type {
   GovernanceActionDefer,
   GovernanceActionType,
   ActionState,
+  StudentResponsesResponse,
+  KpiSummary,
 } from "../types/sentinel";
 
 const API_BASE = "http://localhost:8000";
@@ -111,6 +113,37 @@ export function useStudentList() {
       .then((data) => setState({ status: "success", data }))
       .catch((e: unknown) => setState({ status: "error", message: String(e) }));
   }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { state, reload: load };
+}
+
+export function useKpiSummary() {
+  const [state, setState] = useState<LoadState<KpiSummary>>({ status: "idle" });
+
+  const load = useCallback(() => {
+    setState({ status: "loading" });
+    sentinelGet<KpiSummary>("/sentinel/kpi-summary")
+      .then((data) => setState({ status: "success", data }))
+      .catch((e: unknown) => setState({ status: "error", message: String(e) }));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { state, reload: load };
+}
+
+export function useStudentResponses(userId?: number) {
+  const [state, setState] = useState<LoadState<StudentResponsesResponse>>({ status: "idle" });
+
+  const load = useCallback(() => {
+    setState({ status: "loading" });
+    const qs = userId != null ? `?user_id=${userId}` : "";
+    sentinelGet<StudentResponsesResponse>(`/sentinel/student-responses${qs}`)
+      .then((data) => setState({ status: "success", data }))
+      .catch((e: unknown) => setState({ status: "error", message: String(e) }));
+  }, [userId]);
 
   useEffect(() => { load(); }, [load]);
 

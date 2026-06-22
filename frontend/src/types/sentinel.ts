@@ -135,3 +135,36 @@ export type ActionState =
   | { status: "loading" }
   | { status: "success" }
   | { status: "error"; message: string };
+
+// ---------------------------------------------------------------------------
+// Student responses (Sprint 10 backend — Sprint 11 dashboard surface)
+// ---------------------------------------------------------------------------
+
+export interface StudentResponseRow {
+  id:                  number;
+  cbm_id:              number;
+  engagement_event_id: number;
+  user_id:             number;
+  response_channel:    string;
+  match_method:        string;
+  confidence:          number;
+  matched_at:          string | null;
+}
+
+export interface StudentResponsesResponse {
+  responses: StudentResponseRow[];
+  total:     number;
+  source:    "db" | "mock";
+}
+
+// ---------------------------------------------------------------------------
+// KPI summary (Sprint 11 dashboard strip)
+// ---------------------------------------------------------------------------
+
+export interface KpiSummary {
+  pending_reviews:       number;
+  approved_reviews:      number;
+  student_responses:     number;
+  suppressed_retriggers: number;
+  source:                "db" | "mock";
+}

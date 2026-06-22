@@ -14,6 +14,8 @@ vi.mock("../../hooks/useSentinelData", () => ({
   useReuseMetrics:          vi.fn(),
   useStudentList:           vi.fn(),
   useGovernanceAction:      vi.fn(),
+  useStudentResponses:      vi.fn(),
+  useKpiSummary:            vi.fn(),
 }));
 
 import {
@@ -23,6 +25,8 @@ import {
   useReuseMetrics,
   useStudentList,
   useGovernanceAction,
+  useStudentResponses,
+  useKpiSummary,
 } from "../../hooks/useSentinelData";
 import { SentinelDashboard } from "../SentinelDashboard";
 
@@ -66,6 +70,17 @@ function setupAllMocks() {
     execute: vi.fn().mockResolvedValue(true),
     reset:   vi.fn(),
   });
+  vi.mocked(useStudentResponses).mockReturnValue({
+    state:  { status: "success", data: { responses: [], total: 0, source: "mock" } },
+    reload: noopReload,
+  });
+  vi.mocked(useKpiSummary).mockReturnValue({
+    state: {
+      status: "success",
+      data: { pending_reviews: 3, approved_reviews: 2, student_responses: 4, suppressed_retriggers: 2, source: "mock" },
+    },
+    reload: noopReload,
+  });
 }
 
 describe("SentinelDashboard", () => {
@@ -86,16 +101,21 @@ describe("SentinelDashboard", () => {
 
   it("renders the observability banner", () => {
     render(<SentinelDashboard />);
-    expect(screen.getByText(/Shadow-mode observation only/)).toBeInTheDocument();
+    expect(screen.getByText(/Governed shadow mode/)).toBeInTheDocument();
   });
 
-  it("renders all five navigation tabs", () => {
+  it("renders all six navigation tabs", () => {
     render(<SentinelDashboard />);
-    expect(screen.getByText(/Governance Queue/)).toBeInTheDocument();
-    expect(screen.getByText(/Interpretation Timeline/)).toBeInTheDocument();
-    expect(screen.getByText(/Reuse & Metrics/)).toBeInTheDocument();
-    expect(screen.getByText(/Student Detail/)).toBeInTheDocument();
-    expect(screen.getByText(/Risk Evolution/)).toBeInTheDocument();
+    // Use role-based queries for tabs (buttons) to avoid matching KPI tile labels
+    const buttons = screen.getAllByRole("button");
+    const tabLabels = buttons.map((b) => b.textContent ?? "");
+    const hasTab = (label: string) => tabLabels.some((t) => t.includes(label));
+    expect(hasTab("Governance Queue")).toBe(true);
+    expect(hasTab("Interpretation Timeline")).toBe(true);
+    expect(hasTab("Reuse & Metrics")).toBe(true);
+    expect(hasTab("Student Detail")).toBe(true);
+    expect(hasTab("Risk Evolution")).toBe(true);
+    expect(hasTab("Student Responses")).toBe(true);
   });
 
   it("shows Governance Queue section by default", () => {
@@ -144,5 +164,40 @@ describe("SentinelDashboard", () => {
     });
     render(<SentinelDashboard />);
     expect(screen.getByTestId("loading-state")).toBeInTheDocument();
+  });
+
+  it("renders the KPI strip", () => {
+    render(<SentinelDashboard />);
+    expect(screen.getByTestId("kpi-strip")).toBeInTheDocument();
+  });
+
+  it("shows Student Responses tab in navigation", () => {
+    render(<SentinelDashboard />);
+    const buttons = screen.getAllByRole("button");
+    const tabBtn = buttons.find((b) => b.textContent?.includes("Student Responses"));
+    expect(tabBtn).toBeDefined();
+  });
+
+  it("shows student picker when Student Responses tab is active", async () => {
+    render(<SentinelDashboard />);
+    const buttons = screen.getAllByRole("button");
+    const tabBtn = buttons.find((b) => b.textContent?.includes("Student Responses") && b.textContent?.includes("💬"))!;
+    await userEvent.click(tabBtn);
+    expect(screen.getByLabelText(/Student/i)).toBeInTheDocument();
+  });
+
+  it("renders StudentResponsesPanel content when responses tab is active", async () => {
+    vi.mocked(useStudentResponses).mockReturnValue({
+      state: {
+        status: "success",
+        data: { responses: [], total: 0, source: "mock" },
+      },
+      reload: noopReload,
+    });
+    render(<SentinelDashboard />);
+    const buttons = screen.getAllByRole("button");
+    const tabBtn = buttons.find((b) => b.textContent?.includes("Student Responses") && b.textContent?.includes("💬"))!;
+    await userEvent.click(tabBtn);
+    expect(screen.getByTestId("empty-state")).toBeInTheDocument();
   });
 });

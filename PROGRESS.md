@@ -1,7 +1,7 @@
 # PROGRESS.md
 **Colaberry Sentinel OS — Session Log & System Hardening Tracker**
 
-Last updated: 2026-06-21 (Sprint 10 complete: Student Response Tracking pipeline implemented end-to-end; 72 passed, 3 skipped)
+Last updated: 2026-06-21 (Sprint 11 Tasks 1–2 complete: schema repair + KPI strip; 41 backend + 98 frontend tests passing)
 
 ---
 
@@ -742,6 +742,59 @@ Closes the response attribution gap opened by Sprint 1 (outbound delivery). Befo
 
 ---
 
+## Sprint 11 — Dashboard UI + Schema Repair
+**Date: 2026-06-21 | Status: In Progress (Tasks 1–2 of Step 2 complete; Tasks 3–5 pending)**
+
+### Task 1 — Fix StudentResponse Schema Drift ✅
+**Status: Tested — 28 passed (14 migration + 14 route tests)**
+
+#### Root Cause
+`alembic_version = 0014` on the SQL Server database but `AI_ChatBot_StudentResponses` is missing. Migration 0009 was either skipped when the version pointer was force-advanced to 0014, or the table was dropped manually. Running `alembic upgrade head` is a no-op. Downgrade → upgrade would be destructive (drops 0009–0014 tables).
+
+#### What Changed
+- **`alembic/versions/0015_repair_student_responses_table.py`** (new): Idempotent repair migration. Checks `sa.inspect(bind).has_table()` before creating. If table is absent: creates table + all 3 indexes. If table is present: checks each index individually and creates only missing ones. `matched_at` corrected to `nullable=True` (migration 0009 had `nullable=False` but serializer + frontend type both support null). Revision 0015, down_revision 0014.
+- **`tests/unit/test_repair_student_responses_migration.py`** (new): 14 tests across 5 classes (TestTableAbsent ×6, TestIdempotent ×2, TestPartialRepair ×2, TestDowngrade ×2, TestMigrationMetadata ×2). Uses Alembic's own `Operations` class with in-memory SQLite — no real DB required. Verifies: table created, all indexes present, columns correct, `matched_at` nullable, NULL insert succeeds, downgrade cleans up.
+
+#### Repair Runbook (for SQL Server)
+```bash
+alembic upgrade 0015
+# Then verify:
+# SELECT TOP 1 * FROM AI_ChatBot_StudentResponses;
+# SELECT name FROM sys.indexes WHERE object_id = OBJECT_ID('AI_ChatBot_StudentResponses');
+```
+
+#### UI Verification
+- `MSSQL_CONFIGURED=False` (local): Student Responses tab loads from mock data — 82/82 frontend tests pass
+- `MSSQL_CONFIGURED=True` (after repair): tab switches to DB mode; `GET /sentinel/student-responses` queries the restored table
+
+#### Maturity
+- Migration 0015 — **Tested** (verified via in-memory SQLite; safe to apply to SQL Server)
+- `tests/unit/test_repair_student_responses_migration.py` — **Verified** (14 passed, 0 failed)
+
+### Task 2 — Dashboard KPI Strip ✅
+**Status: Tested — 13 backend + 16 KpiStrip + 17 dashboard = 98 frontend tests passing**
+
+#### What Changed
+- **`api/routes/sentinel.py`**: Added `GET /sentinel/kpi-summary` endpoint. Returns `pending_reviews`, `approved_reviews`, `student_responses`, `suppressed_retriggers`, `source`. Mock fallback (3/2/4/2 derived from existing mock data). DB mode: 4 separate count queries against `GovernanceReview` and `StudentResponse`. Auth-protected (inherits router-level `require_api_key`).
+- **`frontend/src/types/sentinel.ts`**: Added `KpiSummary` interface.
+- **`frontend/src/hooks/useSentinelData.ts`**: Added `useKpiSummary()` hook.
+- **`frontend/src/components/sentinel/KpiStrip.tsx`**: New component. 4 tiles (Pending Reviews, Approved Reviews, Student Responses, Suppressed Retriggers) with colored top borders (blue/green/purple/amber). Refresh button, source badge, error banner, loading state. `data-testid` attributes on strip, each tile, each value, error, and refresh button.
+- **`frontend/src/pages/SentinelDashboard.tsx`**: Added `<KpiStrip />` between `ObservabilityBanner` and the student picker.
+- **`tests/unit/test_kpi_summary_route.py`**: 13 tests (TestMockFallback ×9, TestDbMode ×4). Verifies all 4 fields present, correct types, mock values match mock data, auth guard, DB counts propagated, zero counts valid.
+- **`frontend/src/components/sentinel/__tests__/KpiStrip.test.tsx`**: 16 tests covering structure, values, zero counts, loading/error/success states, source badge, reload.
+- **`frontend/src/pages/__tests__/SentinelDashboard.test.tsx`**: Added `useKpiSummary` to mock factory + `setupAllMocks`. Added `renders the KPI strip` test. Fixed tab-click tests to use role-based button lookup (KPI tile label "Student Responses" conflicted with tab label).
+
+#### Maturity
+- `GET /sentinel/kpi-summary` — **Tested**
+- `KpiStrip` component — **Tested**
+
+### Sprint 11 UI Steps (completed before Task 1 approval gate)
+**Step 1 — Governance Action Buttons**: Approve/Reject/Defer buttons added to pending reviews in `GovernanceQueue.tsx`. Calls existing Sprint 9 backend endpoints. 16 new tests in `GovernanceQueue.test.tsx` (27 total). 15 tests in `SentinelDashboard.test.tsx`. 82 frontend tests passing.
+
+**Step 2 — Student Responses Tab**: `GET /sentinel/student-responses` endpoint added (mock fallback + DB path with `user_id`/`cbm_id`/`limit` filters). `StudentResponsesPanel.tsx` component created. `💬 Student Responses` tab added to dashboard. 18 new panel tests. 3 new dashboard tab tests. 14 backend route tests. 82 frontend tests + 14 backend tests passing.
+
+---
+
 ## Pending Work
 
 ### Immediate (Sprint 10 commit gate — READY)
@@ -816,3 +869,4 @@ Closes the response attribution gap opened by Sprint 1 (outbound delivery). Befo
 | 2026-05-30 | E2E insert failed with `Cannot insert NULL into column 'GroupStatus'` | Real SQL Server `AI_ChatBot_TriggerData` has additional NOT NULL columns (`GroupStatus`, `ChatGPT_prompt`, `DataDictionary`) not in original fixture | Added all three columns to the raw SQL INSERT in `_insert_trigger_data()` | — |
 | 2026-05-30 | `test_is_active_defaults_true` returned `None` instead of `True` | ORM `Column(Boolean, default=True)` fires during INSERT processing, not at object construction; mock `refresh()` is no-op so attribute stayed `None` | Explicitly pass `is_active=True` in `Recommendation(...)` constructor call inside `record()` | — |
 | 2026-06-03 | `SENTINEL_DEBUG_PAYLOAD` logs firing at INFO level in production — full KPI + fingerprint JSON emitted on every evaluation | All 9 `SENTINEL_DEBUG_PAYLOAD` format-string calls used `logger.info()` instead of `logger.debug()` | Changed all 9 occurrences to `logger.debug()` in `sentinel_orchestration_service.py`; silent at INFO in production, accessible with DEBUG log level | — |
+| 2026-06-21 | `AI_ChatBot_StudentResponses` table absent on database where `alembic_version=0014` | Migration 0009 skipped or table dropped manually; Alembic considers schema current so `upgrade head` is a no-op; downgrade→upgrade would be destructive (drops 0009–0014 tables) | Created idempotent repair migration 0015 (`nullable=True` on `matched_at` to align with serializer/frontend); 14 unit tests verify all 4 scenarios (absent/idempotent/partial-repair/downgrade) | — |

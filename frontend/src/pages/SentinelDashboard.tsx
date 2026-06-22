@@ -4,6 +4,8 @@ import { InterpretationTimeline } from "../components/sentinel/InterpretationTim
 import { ReuseMetricsPanel } from "../components/sentinel/ReuseMetrics";
 import { StudentDetailView } from "../components/sentinel/StudentDetailView";
 import { RiskEvolution } from "../components/sentinel/RiskEvolution";
+import { StudentResponsesPanel } from "../components/sentinel/StudentResponsesPanel";
+import { KpiStrip } from "../components/sentinel/KpiStrip";
 import {
   useGovernanceReviews,
   useInterpretationHistory,
@@ -16,7 +18,7 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-type TabKey = "governance" | "timeline" | "metrics" | "student" | "risk";
+type TabKey = "governance" | "timeline" | "metrics" | "student" | "risk" | "responses";
 
 const TABS: Array<{ key: TabKey; label: string; icon: string }> = [
   { key: "governance", label: "Governance Queue",          icon: "⚖" },
@@ -24,6 +26,7 @@ const TABS: Array<{ key: TabKey; label: string; icon: string }> = [
   { key: "metrics",    label: "Reuse & Metrics",           icon: "📊" },
   { key: "student",    label: "Student Detail",            icon: "🎓" },
   { key: "risk",       label: "Risk Evolution",            icon: "📈" },
+  { key: "responses",  label: "Student Responses",         icon: "💬" },
 ];
 
 // Student options are loaded dynamically from /sentinel/students
@@ -70,8 +73,8 @@ function ObservabilityBanner() {
     >
       <span style={{ fontSize: 16 }}>🔭</span>
       <span>
-        <strong>Shadow-mode observation only.</strong>{" "}
-        This dashboard is read-only. No governance actions, no outbound messaging, no intervention controls.
+        <strong>Governed shadow mode.</strong>{" "}
+        Approve, reject, and defer actions are available and fully audited. Outbound student-facing messages are suppressed in this environment.
       </span>
     </div>
   );
@@ -103,10 +106,11 @@ export function SentinelDashboard() {
     }
   }, [selectedStudent, studentOptions]);
 
-  const metricsResult = useReuseMetrics();
-  const latestResult  = useLatestInterpretation(selectedStudent);
-  const historyResult = useInterpretationHistory(selectedStudent);
-  const reviewsResult = useGovernanceReviews();
+  const metricsResult    = useReuseMetrics();
+  const latestResult     = useLatestInterpretation(selectedStudent);
+  const historyResult    = useInterpretationHistory(selectedStudent);
+  const reviewsResult    = useGovernanceReviews();
+  const responsesUserId = selectedStudent ? parseInt(selectedStudent.replace(/\D/g, ""), 10) || undefined : undefined;
 
   // Reset evaluation banner when the selected student changes
   React.useEffect(() => {
@@ -208,8 +212,10 @@ export function SentinelDashboard() {
 
       <ObservabilityBanner />
 
-      {/* Student picker — shared by Student Detail and Risk Evolution tabs */}
-      {(activeTab === "student" || activeTab === "timeline" || activeTab === "risk") && (
+      <KpiStrip />
+
+      {/* Student picker — shared by Student Detail, Risk Evolution, and Responses tabs */}
+      {(activeTab === "student" || activeTab === "timeline" || activeTab === "risk" || activeTab === "responses") && (
         <div style={{ marginBottom: 20 }}>
           <label htmlFor="student-picker" style={{ fontSize: 13, color: "#374151", display: "block", marginBottom: 6, fontWeight: 600 }}>
             Student
@@ -356,6 +362,12 @@ export function SentinelDashboard() {
             </p>
           </div>
           <RiskEvolution entityId={selectedStudent} historyState={historyResult.state} />
+        </SectionCard>
+      )}
+
+      {activeTab === "responses" && (
+        <SectionCard>
+          <StudentResponsesPanel userId={responsesUserId} />
         </SectionCard>
       )}
     </main>

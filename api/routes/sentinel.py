@@ -11,6 +11,7 @@ GET /sentinel/governance/reviews/pending      — pending reviews shorthand
 GET /sentinel/interpretations/{entity_id}/latest   — most-recent active interpretation
 GET /sentinel/interpretations/{entity_id}/history  — full interpretation history
 GET /sentinel/analytics/reuse-metrics         — aggregate pipeline statistics
+GET /sentinel/student-responses               — matched student response rows, optional ?user_id= / ?cbm_id=
 """
 
 from __future__ import annotations
@@ -26,7 +27,7 @@ from sqlalchemy import case
 from sqlalchemy.orm import Session
 
 from config.database import MSSQL_CONFIGURED, SessionLocal
-from services.models import AIInterpretation, GovernanceReview, GovernanceReviewStatus, TriggerData
+from services.models import AIInterpretation, GovernanceReview, GovernanceReviewStatus, StudentResponse, TriggerData
 from services.sentinel_orchestration_service import SentinelOrchestrationService
 from services.governance_review_service import GovernanceReviewService
 from api.schemas.governance_review import (
@@ -646,3 +647,148 @@ def get_students(
         for r in rows
     ]
     return {"students": students, "total": len(students), "source": "db"}
+
+
+# ---------------------------------------------------------------------------
+# Student responses mock data
+# ---------------------------------------------------------------------------
+
+_MOCK_STUDENT_RESPONSES: list[dict[str, Any]] = [
+    {
+        "id": 1,
+        "cbm_id": 42,
+        "engagement_event_id": 1001,
+        "user_id": 101,
+        "response_channel": "whatsapp",
+        "match_method": "thread_id",
+        "confidence": 1.0,
+        "matched_at": "2026-06-20T14:30:00",
+    },
+    {
+        "id": 2,
+        "cbm_id": 43,
+        "engagement_event_id": 1002,
+        "user_id": 101,
+        "response_channel": "sms",
+        "match_method": "time_proximity",
+        "confidence": 0.65,
+        "matched_at": "2026-06-20T16:45:00",
+    },
+    {
+        "id": 3,
+        "cbm_id": 44,
+        "engagement_event_id": 1003,
+        "user_id": 202,
+        "response_channel": "whatsapp",
+        "match_method": "thread_id",
+        "confidence": 1.0,
+        "matched_at": "2026-06-21T09:15:00",
+    },
+    {
+        "id": 4,
+        "cbm_id": 45,
+        "engagement_event_id": 1004,
+        "user_id": 202,
+        "response_channel": "sms",
+        "match_method": "time_proximity",
+        "confidence": 0.42,
+        "matched_at": "2026-06-21T11:00:00",
+    },
+]
+
+
+def _serialize_student_response(r: StudentResponse) -> dict[str, Any]:
+    return {
+        "id":                  r.id,
+        "cbm_id":              r.cbm_id,
+        "engagement_event_id": r.engagement_event_id,
+        "user_id":             r.user_id,
+        "response_channel":    r.response_channel,
+        "match_method":        r.match_method,
+        "confidence":          r.confidence,
+        "matched_at":          r.matched_at.isoformat() if r.matched_at else None,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Student responses endpoint
+# ---------------------------------------------------------------------------
+
+@router.get("/student-responses")
+def get_student_responses(
+    user_id: Optional[int] = Query(None, description="Filter by user_id (integer)"),
+    cbm_id:  Optional[int] = Query(None, description="Filter by cbm_id"),
+    limit:   int           = Query(100, le=500),
+    db:      Optional[Session] = Depends(_get_db_optional),
+) -> dict[str, Any]:
+    """Return matched StudentResponse rows for the dashboard.
+
+    Ordered by matched_at descending (most recent first).
+    Falls back to mock data when MSSQL is not configured.
+    Filters on user_id and cbm_id are additive (AND).
+    """
+    if db is None:
+        filtered = _MOCK_STUDENT_RESPONSES
+        if user_id is not None:
+            filtered = [r for r in filtered if r["user_id"] == user_id]
+        if cbm_id is not None:
+            filtered = [r for r in filtered if r["cbm_id"] == cbm_id]
+        return {"responses": filtered[:limit], "total": len(filtered[:limit]), "source": "mock"}
+
+    q = db.query(StudentResponse)
+    if user_id is not None:
+        q = q.filter(StudentResponse.user_id == user_id)
+    if cbm_id is not None:
+        q = q.filter(StudentResponse.cbm_id == cbm_id)
+    rows = q.order_by(StudentResponse.matched_at.desc()).limit(limit).all()
+    return {
+        "responses": [_serialize_student_response(r) for r in rows],
+        "total":     len(rows),
+        "source":    "db",
+    }
+
+
+# ---------------------------------------------------------------------------
+# KPI summary endpoint
+# ---------------------------------------------------------------------------
+
+_MOCK_KPI_SUMMARY: dict[str, Any] = {
+    # Derived from _MOCK_REVIEWS: IDs 1,2,3 pending; IDs 4,5 approved
+    "pending_reviews":      3,
+    "approved_reviews":     2,
+    # Derived from _MOCK_STUDENT_RESPONSES: 4 total; IDs 1,3 have confidence=1.0
+    "student_responses":    4,
+    "suppressed_retriggers": 2,
+}
+
+
+@router.get("/kpi-summary")
+def get_kpi_summary(
+    db: Optional[Session] = Depends(_get_db_optional),
+) -> dict[str, Any]:
+    """Return four headline KPIs for the dashboard strip.
+
+    - pending_reviews:      GovernanceReview rows with status='pending'
+    - approved_reviews:     GovernanceReview rows with status='approved'
+    - student_responses:    total AI_ChatBot_StudentResponses rows
+    - suppressed_retriggers: StudentResponse rows where confidence=1.0
+                             (deterministic thread_id matches that suppress re-delivery)
+
+    Falls back to derived mock values when MSSQL is not configured.
+    All four counts are integers; all are read-only queries.
+    """
+    if db is None:
+        return {**_MOCK_KPI_SUMMARY, "source": "mock"}
+
+    pending_reviews      = db.query(GovernanceReview).filter(GovernanceReview.status == "pending").count()
+    approved_reviews     = db.query(GovernanceReview).filter(GovernanceReview.status == "approved").count()
+    student_responses    = db.query(StudentResponse).count()
+    suppressed_retriggers = db.query(StudentResponse).filter(StudentResponse.confidence == 1.0).count()
+
+    return {
+        "pending_reviews":       pending_reviews,
+        "approved_reviews":      approved_reviews,
+        "student_responses":     student_responses,
+        "suppressed_retriggers": suppressed_retriggers,
+        "source":                "db",
+    }
