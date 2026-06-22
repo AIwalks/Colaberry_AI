@@ -26,6 +26,7 @@ from api.routes.fingerprint import router as fingerprint_router
 from api.routes.kpi import router as kpi_router
 from api.routes.insight import router as insight_router
 from api.routes.sentinel import router as sentinel_router
+from api.routes.twilio import router as twilio_router
 from config.auth import require_api_key
 
 import logging as _logging
@@ -104,6 +105,7 @@ app.include_router(fingerprint_router, dependencies=[Depends(require_api_key)])
 app.include_router(kpi_router,         dependencies=[Depends(require_api_key)])
 app.include_router(insight_router,     dependencies=[Depends(require_api_key)])
 app.include_router(sentinel_router,    dependencies=[Depends(require_api_key)])
+app.include_router(twilio_router)  # auth handled per-request by validate_twilio_signature
 
 
 # ---------------------------------------------------------------------------
